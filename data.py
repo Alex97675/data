@@ -57,9 +57,31 @@ def get_symbol_candles(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol in kline_history:
-            recent_candles = kline_history[symbol][-5:]
-            data = {"symbol": symbol, "candles": recent_candles}
+            # Сүүлийн 5 лааг авна
+            raw_candles = kline_history[symbol][-5:]
+            
+            # Лаа тус бүрд нэршил болон утгуудыг тодорхой болгож оноох
+            index_keys = ["-4", "-3", "-2", "-1", "0"]
+            formatted_candles = {}
+            
+            for i, kline in enumerate(raw_candles):
+                idx_key = index_keys[i]
+                formatted_candles[idx_key] = {
+                    "open_time": kline[0],
+                    "open": kline[1],
+                    "high": kline[2],
+                    "low": kline[3],
+                    "close": kline[4],
+                    "volume": kline[5],
+                    "close_time": kline[6]
+                }
+            
+            data = {
+                "symbol": symbol,
+                "candles": formatted_candles
+            }
             return JSONResponse(content=jsonable_encoder(data))
+            
     raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
 
 # ==================== API / DATA ====================
