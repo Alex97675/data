@@ -1,15 +1,19 @@
 import os
 import json
+import sys
 import threading
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import websocket
 from binance.um_futures import UMFutures
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 import uvicorn
+import pandas as pd
+from ta.momentum import RSIIndicator
 import requests
+from collections import deque
+import datetime
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
