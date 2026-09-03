@@ -1,6 +1,5 @@
 import os
 import json
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,7 +10,6 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 import uvicorn
 import requests
-import datetime
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -59,7 +57,6 @@ def get_symbol_candles(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol in kline_history:
-            # Сүүлийн 5 лааг л зүсэж авах [-5:]
             recent_candles = kline_history[symbol][-5:]
             data = {"symbol": symbol, "candles": recent_candles}
             return JSONResponse(content=jsonable_encoder(data))
@@ -214,14 +211,6 @@ def start_background_daemon():
     threading.Thread(target=status_monitor, daemon=True).start()
     start_websocket(symbols)
 
-# ==================== ENTRY POINT ====================
-if __name__ == "__main__":
-    daemon_thread = threading.Thread(target=start_background_daemon, daemon=True)
-    daemon_thread.start()
-
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
 # ==================== FASTAPI STARTUP EVENT ====================
 @app.on_event("startup")
 def startup_event():
@@ -229,3 +218,8 @@ def startup_event():
     daemon_thread = threading.Thread(target=start_background_daemon, daemon=True)
     daemon_thread.start()
     print("🚀 FastAPI startup event: Background data daemon started successfully.")
+
+# ==================== ENTRY POINT ====================
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
