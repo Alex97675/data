@@ -57,10 +57,8 @@ def get_symbol_candles(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol in kline_history:
-            # Сүүлийн 5 лааг авна
             raw_candles = kline_history[symbol][-5:]
             
-            # Лаа тус бүрд нэршил болон утгуудыг тодорхой болгож оноох
             index_keys = ["-4", "-3", "-2", "-1", "0"]
             formatted_candles = {}
             
@@ -76,8 +74,12 @@ def get_symbol_candles(symbol: str):
                     "close_time": kline[6]
                 }
             
+            # Яг одоогийн хамгийн сүүлийн лааны close ханшийг latest_price болгож авах
+            latest_price = formatted_candles["0"]["close"]
+            
             data = {
                 "symbol": symbol,
+                "latest_price": latest_price,
                 "candles": formatted_candles
             }
             return JSONResponse(content=jsonable_encoder(data))
