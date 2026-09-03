@@ -57,8 +57,12 @@ def get_symbol_candles(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol in kline_history:
-            raw_candles = kline_history[symbol][-5:]
-            
+            klines = kline_history[symbol]
+            if not klines or len(klines) < 20:
+                raise HTTPException(status_code=400, detail="Not enough kline data for indicators")
+
+            # 1. Сүүлийн 5 лааг бэлтгэх
+            raw_candles = klines[-5:]
             index_keys = ["-4", "-3", "-2", "-1", "0"]
             formatted_candles = {}
             
@@ -74,12 +78,25 @@ def get_symbol_candles(symbol: str):
                     "close_time": kline[6]
                 }
             
-            # Яг одоогийн хамгийн сүүлийн лааны close ханшийг latest_price болгож авах
             latest_price = formatted_candles["0"]["close"]
+
+            # 2. Сүүлийн 5 RSI утгыг тооцоолж олох (Window = 7)
+            closes = [float(x[4]) for x in klines]
+            closes_series = pd.Series(closes)
+            rsi_series = RSIIndicator(close=closes_series, window=7).rsi().dropna()
             
+            formatted_rsi = {}
+            if len(rsi_series) >= 5:
+                recent_rsi = rsi_series.iloc[-5:]
+                for i, rsi_val in enumerate(recent_rsi):
+                    idx_key = index_keys[i]
+                    formatted_rsi[idx_key] = round(float(rsi_val), 4)
+
+            # 3. Үндсэн хариу бүтцийг бүрдүүлэх
             data = {
                 "symbol": symbol,
                 "latest_price": latest_price,
+                "rsi": formatted_rsi,
                 "candles": formatted_candles
             }
             return JSONResponse(content=jsonable_encoder(data))
