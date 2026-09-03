@@ -59,7 +59,9 @@ def get_symbol_candles(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol in kline_history:
-            data = {"symbol": symbol, "candles": kline_history[symbol]}
+            # Сүүлийн 5 лааг л зүсэж авах [-5:]
+            recent_candles = kline_history[symbol][-5:]
+            data = {"symbol": symbol, "candles": recent_candles}
             return JSONResponse(content=jsonable_encoder(data))
     raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
 
