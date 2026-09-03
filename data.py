@@ -14,6 +14,8 @@ from ta.momentum import RSIIndicator
 import requests
 from collections import deque
 import datetime
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
