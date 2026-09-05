@@ -29,14 +29,20 @@ cache_lock = threading.Lock()
 closed_kline_count = 0
 last_kline_time = 0
 
+# Бот болон Daemon удирдах флагууд
+daemon_is_running = False
+daemon_thread = None
+daemon_lock = threading.Lock()
+ws_app = None  # WebSocket-г гаднаас нь зогсооход зориулав
+
 # ==================== FASTAPI APP ====================
-app = FastAPI(title="Binance Pure Candle Data Daemon")
+app = FastAPI(title="Binance Controlled Candle Data Daemon")
 
 @app.get("/")
 def root():
     with cache_lock:
         data = {
-            "status": "running",
+            "status": "running" if daemon_is_running else "stopped",
             "symbols_loaded": len(kline_history),
             "closed_candles_count": closed_kline_count,
             "last_closed_time": last_kline_time
@@ -52,6 +58,45 @@ def get_railway_public_ip():
     except Exception as e:
         return JSONResponse(content=jsonable_encoder({"error": str(e)}))
 
+# ==================== START / STOP CONTROL ====================
+@app.get("/start")
+def start_daemon():
+    global daemon_is_running, daemon_thread
+    with daemon_lock:
+        if daemon_is_running:
+            return {"status": "already running"}
+        daemon_is_running = True
+        daemon_thread = threading.Thread(target=start_background_daemon, daemon=True)
+        daemon_thread.start()
+    return {"status": "daemon started successfully"}
+
+@app.get("/stop")
+def stop_daemon():
+    global daemon_is_running, ws_app
+    with daemon_lock:
+        if not daemon_is_running:
+            return {"status": "already stopped"}
+        daemon_is_running = False
+        
+        # WebSocket ажиллаж байгаа бол шууд хаах
+        if ws_app:
+            try:
+                ws_app.close()
+            except Exception:
+                pass
+                
+    return {"status": "stop signal sent"}
+
+@app.get("/status")
+def daemon_status():
+    with cache_lock:
+        return {
+            "is_running": daemon_is_running,
+            "symbols_loaded": len(kline_history),
+            "closed_candles_count": closed_kline_count
+        }
+
+# ==================== CANDLE & INDICATOR ENDPOINTS ====================
 @app.get("/candles")
 def get_all_candles():
     with cache_lock:
@@ -76,7 +121,6 @@ def get_symbol_ohlc(symbol: str):
     result = calculate_ohlc_tracker_report(klines, symbol)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-        
     return JSONResponse(content=jsonable_encoder(result))
 
 @app.get("/rsi/{symbol}")
@@ -90,10 +134,7 @@ def get_symbol_rsi(symbol: str):
     result = calculate_rsi_report(klines, symbol)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-        
     return JSONResponse(content=jsonable_encoder(result))
-
-from ema_data import calculate_ema_report
 
 @app.get("/ema/{span}/{symbol}")
 def get_symbol_ema(span: int, symbol: str):
@@ -106,7 +147,6 @@ def get_symbol_ema(span: int, symbol: str):
     result = calculate_ema_report(klines, symbol, span=span)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
-        
     return JSONResponse(content=jsonable_encoder(result))
 
 @app.get("/macd/{symbol}")
@@ -140,7 +180,6 @@ def calculate_gain_lose_report():
             macd_line = ema12 - ema26
             macd_signal = macd_line.ewm(span=9, adjust=False).mean()
 
-            # State шинэчлэх
             macd_state[symbol] = _build_initial_macd_state(klines, macd_line, macd_signal)
             st = macd_state[symbol]
 
@@ -207,7 +246,7 @@ def get_symbol_all_data(symbol: str):
     except Exception:
         pass
 
-    return {
+    return JSONResponse(content=jsonable_encoder({
         "symbol": symbol,
         "rsi": rsi_res if "error" not in rsi_res else None,
         "macd": macd_res if "error" not in macd_res else None,
@@ -216,7 +255,7 @@ def get_symbol_all_data(symbol: str):
         "ema200": ema200_res if "error" not in ema200_res else None,
         "ohlc": ohlc_res if "error" not in ohlc_res else None,
         "tops": tops_res
-    }
+    }))
 
 # ==================== API / DATA ====================
 def get_active_symbols():
@@ -264,6 +303,7 @@ def process_closed_kline(symbol, k):
 
 # ==================== WEBSOCKET ====================
 def start_websocket(symbols):
+    global ws_app, daemon_is_running
     print("\n" + "="*60 + "\nSTARTING REALTIME WEBSOCKET\n" + "="*60)
     print(f"[WS] Symbols: {len(symbols)} | URL: {WS_URL}")
 
@@ -280,7 +320,6 @@ def start_websocket(symbols):
             data = json.loads(message)
             
             if "result" in data:
-                print(f"[WS] Subscribe response: {data}")
                 return
             if "data" in data:
                 data = data["data"]
@@ -299,20 +338,22 @@ def start_websocket(symbols):
     def on_close(ws, code, message):
         print(f"[WS CLOSED] code={code}, message={message}")
 
-    while True:
+    while daemon_is_running:
         try:
             print("[WS] Connecting...")
-            ws = websocket.WebSocketApp(WS_URL, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
-            ws.run_forever(ping_interval=WS_PING_INTERVAL, ping_timeout=WS_PING_TIMEOUT)
+            ws_app = websocket.WebSocketApp(WS_URL, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
+            ws_app.run_forever(ping_interval=WS_PING_INTERVAL, ping_timeout=WS_PING_TIMEOUT)
         except Exception as e:
             print(f"[WS EXCEPTION] {e}")
-        print("[WS] Reconnecting in 5 seconds...")
-        time.sleep(5)
+        
+        if daemon_is_running:
+            print("[WS] Reconnecting in 5 seconds...")
+            time.sleep(5)
 
 # ==================== MONITOR ====================
 def status_monitor():
-    global closed_kline_count, last_kline_time
-    while True:
+    global closed_kline_count, last_kline_time, daemon_is_running
+    while daemon_is_running:
         time.sleep(10)
         with cache_lock:
             count, symbols_loaded = closed_kline_count, len(kline_history)
@@ -322,19 +363,18 @@ def status_monitor():
 
 # ==================== BACKGROUND DAEMON INIT ====================
 def start_background_daemon():
-    global kline_history
+    global kline_history, daemon_is_running
     print("="*60 + "\nBINANCE 1M CANDLE BASE DATA DAEMON\n" + "="*60)
     
     print("[INFO] Fetching active USDT perpetual symbols...")
     symbols = get_active_symbols()
-    if not symbols:
-        print("[ERROR] No active symbols found.")
+    if not symbols or not daemon_is_running:
+        print("[ERROR] No active symbols found or daemon stopped.")
+        daemon_is_running = False
         return
 
     print(f"[SUCCESS] Found {len(symbols)} active symbols.")
-
     print("\n" + "="*60 + "\nONE-TIME HISTORICAL DOWNLOAD\n" + "="*60)
-    print(f"[INFO] Target: {len(symbols)} symbols × {MAX_KLINES} candles ({len(symbols) * MAX_KLINES:,} total)")
 
     client = UMFutures()
     client.session.requests_params = {"timeout": 10}
@@ -344,6 +384,8 @@ def start_background_daemon():
 
     def worker(symbol):
         nonlocal loaded_count
+        if not daemon_is_running:
+            return symbol, None
         res_sym, hist = fetch_historical_klines(client, symbol)
         with progress_lock:
             loaded_count += 1
@@ -354,6 +396,8 @@ def start_background_daemon():
     with ThreadPoolExecutor(max_workers=REST_WORKERS) as executor:
         futures = [executor.submit(worker, s) for s in symbols]
         for f in as_completed(futures):
+            if not daemon_is_running:
+                break
             sym, hist = f.result()
             if hist:
                 with cache_lock:
@@ -361,24 +405,15 @@ def start_background_daemon():
             else:
                 failed_symbols.append(sym)
 
-    print(f"\n[SUCCESS] Download finished in {time.time() - start_time:.1f}s. Loaded: {len(kline_history)}/{len(symbols)}, Failed: {len(failed_symbols)}")
-    print(f"[INFO] Candles in RAM: {sum(len(h) for h in kline_history.values()):,}")
+    if not daemon_is_running:
+        print("\n🛑 [STOP] Daemon was stopped during download.")
+        return
 
+    print(f"\n[SUCCESS] Download finished in {time.time() - start_time:.1f}s. Loaded: {len(kline_history)}/{len(symbols)}")
+    
     threading.Thread(target=status_monitor, daemon=True).start()
     start_websocket(symbols)
 
-# ==================== FASTAPI STARTUP EVENT ====================
-@app.on_event("startup")
-def startup_event():
-    """FastAPI сервер асахад дата татах болон WebSocket background daemon-ийг автоматаар эхлүүлэх"""
-    daemon_thread = threading.Thread(target=start_background_daemon, daemon=True)
-    daemon_thread.start()
-    print("🚀 FastAPI startup event: Background data daemon started successfully.")
-
-# ==================== ENTRY POINT ====================
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
 # ==================== ENTRY POINT ====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
