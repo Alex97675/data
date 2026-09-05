@@ -17,6 +17,7 @@ import datetime
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from ohlc_data import calculate_ohlc_tracker_report
+from rsi_data import calculate_rsi_report
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -63,6 +64,20 @@ def get_symbol_ohlc(symbol: str):
         klines = kline_history[symbol]
 
     result = calculate_ohlc_tracker_report(klines, symbol)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+        
+    return JSONResponse(content=jsonable_encoder(result))
+
+@app.get("/rsi/{symbol}")
+def get_symbol_rsi(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    result = calculate_rsi_report(klines, symbol)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
         
