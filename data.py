@@ -14,7 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from ohlc_data import calculate_ohlc_tracker_report
 from rsi_data import calculate_rsi_report
 from ema_data import calculate_ema_report
-from macd_data import calculate_macd_report, _build_initial_macd_state
+from macd_data import calculate_macd_report, _build_initial_macd_state, macd_state
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -375,6 +375,10 @@ def startup_event():
     daemon_thread.start()
     print("🚀 FastAPI startup event: Background data daemon started successfully.")
 
+# ==================== ENTRY POINT ====================
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 # ==================== ENTRY POINT ====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
