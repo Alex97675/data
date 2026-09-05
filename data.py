@@ -1,23 +1,19 @@
 import os
 import json
-import sys
 import threading
 import time
-from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import websocket
 from binance.um_futures import UMFutures
 from fastapi import FastAPI, HTTPException
 import uvicorn
-import pandas as pd
-from ta.momentum import RSIIndicator
 import requests
-from collections import deque
-import datetime
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from ohlc_data import calculate_ohlc_tracker_report
 from rsi_data import calculate_rsi_report
+from ema_data import calculate_ema_report
+from macd_data import calculate_macd_report
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -54,6 +50,19 @@ def get_railway_public_ip():
         return JSONResponse(content=jsonable_encoder(response.json()))
     except Exception as e:
         return JSONResponse(content=jsonable_encoder({"error": str(e)}))
+
+@app.get("/candles")
+def get_all_candles():
+    with cache_lock:
+        return kline_history
+
+@app.get("/candles/{symbol}")
+def get_symbol_candles(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol in kline_history:
+            return {"symbol": symbol, "candles": kline_history[symbol]}
+    raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
 
 @app.get("/ohlc/{symbol}")
 def get_symbol_ohlc(symbol: str):
@@ -98,6 +107,19 @@ def get_symbol_ema(span: int, symbol: str):
         raise HTTPException(status_code=400, detail=result["error"])
         
     return JSONResponse(content=jsonable_encoder(result))
+
+@app.get("/macd/{symbol}")
+def get_symbol_macd(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    result = calculate_macd_report(klines, symbol)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 # ==================== API / DATA ====================
 def get_active_symbols():
