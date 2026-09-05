@@ -8,12 +8,13 @@ from binance.um_futures import UMFutures
 from fastapi import FastAPI, HTTPException
 import uvicorn
 import requests
+import pandas as pd
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from ohlc_data import calculate_ohlc_tracker_report
 from rsi_data import calculate_rsi_report
 from ema_data import calculate_ema_report
-from macd_data import calculate_macd_report
+from macd_data import calculate_macd_report, _build_initial_macd_state
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -120,6 +121,102 @@ def get_symbol_macd(symbol: str):
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+@app.get("/top-movers")
+def calculate_gain_lose_report():
+    global kline_history, macd_state
+    movers_list = []
+
+    with cache_lock:
+        for symbol, klines in kline_history.items():
+            if not klines or len(klines) < 50:
+                continue
+            
+            closes = [float(x[4]) for x in klines]
+            closes_series = pd.Series(closes)
+
+            ema12 = closes_series.ewm(span=12, adjust=False).mean()
+            ema26 = closes_series.ewm(span=26, adjust=False).mean()
+            macd_line = ema12 - ema26
+            macd_signal = macd_line.ewm(span=9, adjust=False).mean()
+
+            # State шинэчлэх
+            macd_state[symbol] = _build_initial_macd_state(klines, macd_line, macd_signal)
+            st = macd_state[symbol]
+
+            try:
+                close_price = float(klines[-1][4])
+            except (IndexError, ValueError):
+                continue
+
+            up_init = st.get("macd_initial_up_price")
+            down_init = st.get("macd_initial_down_price")
+
+            active_init = up_init if st.get("trend") == "UP" else down_init
+            if not active_init or active_init <= 0:
+                active_init = float(klines[-1][1])
+
+            change_percent = ((close_price - active_init) / active_init) * 100
+
+            movers_list.append({
+                "symbol": symbol,
+                "initial_price": round(active_init, 8),
+                "close_price": round(close_price, 8),
+                "change_percent": round(change_percent, 2),
+                "trend": st.get("trend", "None")
+            })
+
+    if not movers_list:
+        return {"error": "No valid data calculated yet"}
+
+    sorted_by_gain = sorted(movers_list, key=lambda x: x["change_percent"], reverse=True)
+
+    return {
+        "top_gainers": sorted_by_gain[:10],
+        "top_losers": sorted_by_gain[-10:][::-1]
+    }
+
+@app.get("/all/{symbol}")
+def get_symbol_all_data(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    rsi_res = calculate_rsi_report(klines, symbol)
+    macd_res = calculate_macd_report(klines, symbol)
+    ema13_res = calculate_ema_report(klines, symbol, span=13)
+    ema50_res = calculate_ema_report(klines, symbol, span=50)
+    ema200_res = calculate_ema_report(klines, symbol, span=200)
+    ohlc_res = calculate_ohlc_tracker_report(klines, symbol)
+
+    tops_res = None
+    try:
+        if symbol in macd_state:
+            init_price = macd_state[symbol].get("macd_initial_up_price")
+            if init_price and init_price > 0:
+                close_price = float(klines[-1][4])
+                change_percent = ((close_price - init_price) / init_price) * 100
+                tops_res = {
+                    "symbol": symbol,
+                    "initial_price": round(init_price, 8),
+                    "close_price": round(close_price, 8),
+                    "change_percent": round(change_percent, 2)
+                }
+    except Exception:
+        pass
+
+    return {
+        "symbol": symbol,
+        "rsi": rsi_res if "error" not in rsi_res else None,
+        "macd": macd_res if "error" not in macd_res else None,
+        "ema13": ema13_res if "error" not in ema13_res else None,
+        "ema50": ema50_res if "error" not in ema50_res else None,
+        "ema200": ema200_res if "error" not in ema200_res else None,
+        "ohlc": ohlc_res if "error" not in ohlc_res else None,
+        "tops": tops_res
+    }
 
 # ==================== API / DATA ====================
 def get_active_symbols():
