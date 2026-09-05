@@ -83,6 +83,22 @@ def get_symbol_rsi(symbol: str):
         
     return JSONResponse(content=jsonable_encoder(result))
 
+from ema_data import calculate_ema_report
+
+@app.get("/ema/{span}/{symbol}")
+def get_symbol_ema(span: int, symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    result = calculate_ema_report(klines, symbol, span=span)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+        
+    return JSONResponse(content=jsonable_encoder(result))
+
 # ==================== API / DATA ====================
 def get_active_symbols():
     try:
