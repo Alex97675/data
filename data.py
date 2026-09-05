@@ -16,6 +16,7 @@ from collections import deque
 import datetime
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from ohlc_data import calculate_ohlc_tracker_report
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -53,61 +54,19 @@ def get_railway_public_ip():
     except Exception as e:
         return JSONResponse(content=jsonable_encoder({"error": str(e)}))
 
-@app.get("/candles")
-def get_all_candles():
-    with cache_lock:
-        return JSONResponse(content=jsonable_encoder(kline_history))
-
-@app.get("/candles/{symbol}")
-def get_symbol_candles(symbol: str):
+@app.get("/ohlc/{symbol}")
+def get_symbol_ohlc(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
-        if symbol in kline_history:
-            klines = kline_history[symbol]
-            if not klines or len(klines) < 20:
-                raise HTTPException(status_code=400, detail="Not enough kline data for indicators")
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
 
-            # 1. Сүүлийн 5 лааг бэлтгэх
-            raw_candles = klines[-5:]
-            index_keys = ["-4", "-3", "-2", "-1", "0"]
-            formatted_candles = {}
-            
-            for i, kline in enumerate(raw_candles):
-                idx_key = index_keys[i]
-                formatted_candles[idx_key] = {
-                    "open_time": kline[0],
-                    "open": kline[1],
-                    "high": kline[2],
-                    "low": kline[3],
-                    "close": kline[4],
-                    "volume": kline[5],
-                    "close_time": kline[6]
-                }
-            
-            latest_price = formatted_candles["0"]["close"]
-
-            # 2. Сүүлийн 5 RSI утгыг тооцоолж олох (Window = 7)
-            closes = [float(x[4]) for x in klines]
-            closes_series = pd.Series(closes)
-            rsi_series = RSIIndicator(close=closes_series, window=7).rsi().dropna()
-            
-            formatted_rsi = {}
-            if len(rsi_series) >= 5:
-                recent_rsi = rsi_series.iloc[-5:]
-                for i, rsi_val in enumerate(recent_rsi):
-                    idx_key = index_keys[i]
-                    formatted_rsi[idx_key] = round(float(rsi_val), 4)
-
-            # 3. Үндсэн хариу бүтцийг бүрдүүлэх
-            data = {
-                "symbol": symbol,
-                "latest_price": latest_price,
-                "rsi": formatted_rsi,
-                "candles": formatted_candles
-            }
-            return JSONResponse(content=jsonable_encoder(data))
-            
-    raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+    result = calculate_ohlc_tracker_report(klines, symbol)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+        
+    return JSONResponse(content=jsonable_encoder(result))
 
 # ==================== API / DATA ====================
 def get_active_symbols():
