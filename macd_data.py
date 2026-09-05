@@ -3,6 +3,8 @@
 import datetime
 import pandas as pd
 
+macd_state = {}
+
 # ==================== ADVANCED MACD CALCULATION ====================
 def _build_initial_macd_state(klines, macd_line, macd_signal):
     initial_st = {
