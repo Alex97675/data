@@ -35,6 +35,9 @@ daemon_thread = None
 daemon_lock = threading.Lock()
 ws_app = None  # WebSocket-г гаднаас нь зогсооход зориулав
 
+selected_symbols = set()
+selected_lock = threading.Lock()
+
 # ==================== FASTAPI APP ====================
 app = FastAPI(title="Binance Controlled Candle Data Daemon")
 
@@ -96,6 +99,28 @@ def daemon_status():
             "closed_candles_count": closed_kline_count
         }
 
+# ==================== SELECTED SYMBOLS STATE ====================
+
+@app.get("/choose/{symbol}")
+def choose_symbol(symbol: str):
+    symbol = symbol.upper()
+    with selected_lock:
+        selected_symbols.add(symbol)
+    return {"status": "success", "message": f"{symbol} added to selected list", "selected_symbols": list(selected_symbols)}
+
+@app.get("/delete/{symbol}")
+def delete_symbol(symbol: str):
+    symbol = symbol.upper()
+    with selected_lock:
+        if symbol in selected_symbols:
+            selected_symbols.remove(symbol)
+    return {"status": "success", "message": f"{symbol} removed from selected list", "selected_symbols": list(selected_symbols)}
+
+@app.get("/selected-symbols")
+def get_selected_symbols():
+    with selected_lock:
+        return {"selected_symbols": list(selected_symbols)}
+    
 # ==================== CANDLE & INDICATOR ENDPOINTS ====================
 @app.get("/candles")
 def get_all_candles():
