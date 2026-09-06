@@ -78,14 +78,12 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         if found_macd_up and found_macd_down:
             break
 
-    # ШИНЭ ЛОГИК: Тухайн эхэлсэн цэгээс хойшхи хамгийн өндөр оргил (max) утгыг олж 2 хувааж дундажлах
     if up_start_idx != -1:
         up_vals = [float(macd_line.iloc[j]) for j in range(up_start_idx, len(macd_line))]
         if up_vals:
             max_up_peak = max(up_vals)
             initial_st["macd_average_lineup"] = max_up_peak / 2.0
 
-    # ШИНЭ ЛОГИК: Тухайн эхэлсэн цэгээс хойшхи хамгийн доод оргил (min) утгыг олж 2 хувааж дундажлах
     if down_start_idx != -1:
         down_vals = [float(macd_line.iloc[j]) for j in range(down_start_idx, len(macd_line))]
         if down_vals:
@@ -177,6 +175,12 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
 
         current_trend = macd_state[symbol].get("trend", "None")
 
+        # --- ШИНЭЭР НЭМЭХ ТООЦООЛОЛ ---
+        current_macd_line = float(macd_line.iloc[-1])
+        macd_line_up_0 = current_macd_line > 0
+        macd_line_down_0 = current_macd_line < 0
+        # -----------------------------
+
         return {
             "symbol": symbol,
             "line": {
@@ -197,6 +201,10 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
                 "-2": f"{macd_hist.iloc[-3]:.8f}",
                 "-3": f"{macd_hist.iloc[-4]:.8f}"
             },
+            # --- ШИНЭ ТӨЛӨВҮҮДҮҮДИЙГ ЭНД ОРУУЛАВ ---
+            "macd_lineUp0": macd_line_up_0,
+            "macd_linedown0": macd_line_down_0,
+            # --------------------------------------
             "macd_up": current_trend == "UP",
             "macd_down": current_trend == "DOWN",
             "macd_min": f"{macd_min:.8f}",
