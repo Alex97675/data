@@ -143,8 +143,9 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
             macd_state[symbol]["macd_lineup_limit"] = None
             macd_state[symbol]["macd_linedown_limit"] = None
 
-        macd_up = macd_line.iloc[-2] > macd_signal.iloc[-2] and macd_line.iloc[-3] < macd_signal.iloc[-3]
-        macd_down = macd_line.iloc[-2] < macd_signal.iloc[-2] and macd_line.iloc[-3] > macd_signal.iloc[-3]
+        # Кросс хийж байгаа мөчийг шалгах (хуучнаараа)
+        macd_upcross = macd_line.iloc[-2] > macd_signal.iloc[-2] and macd_line.iloc[-3] < macd_signal.iloc[-3]
+        macd_downcross = macd_line.iloc[-2] < macd_signal.iloc[-2] and macd_line.iloc[-3] > macd_signal.iloc[-3]
 
         line_minus_1 = macd_line.iloc[-2]
         line_minus_2 = macd_line.iloc[-3]
@@ -164,22 +165,29 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
         macd_min = min(last_4_lines)
         macd_max = max(last_4_lines)
 
-        if macd_up:
+        # Тренд шинэчлэхэд croos-ийг ашиглана
+        if macd_upcross:
             macd_state[symbol]["trend"] = "UP"
             macd_state[symbol]["uplimit"] = macd_min
             macd_state[symbol]["uplimit_cross_line"] = macd_line.iloc[-2]
-        if macd_down:
+        if macd_downcross:
             macd_state[symbol]["trend"] = "DOWN"
             macd_state[symbol]["downlimit"] = macd_max
             macd_state[symbol]["downlimit_cross_line"] = macd_line.iloc[-2]
 
         current_trend = macd_state[symbol].get("trend", "None")
 
-        # --- ШИНЭЭР НЭМЭХ ТООЦООЛОЛ ---
-        current_macd_line = float(macd_line.iloc[-1])
-        macd_line_up_0 = current_macd_line > 0
-        macd_line_down_0 = current_macd_line < 0
-        # -----------------------------
+        # --- СУУРЬ БАЙРЛАЛААР ШАЛГАХ (`-2` индекс буюу хаагдсан лаагаар) ---
+        macd_line_minus2 = float(macd_line.iloc[-2])
+        macd_signal_minus2 = float(macd_signal.iloc[-2])
+
+        macd_line_up_0 = macd_line_minus2 > 0
+        macd_line_down_0 = macd_line_minus2 < 0
+        
+        # Кросс хүлээхгүйгээр, -2 дээр MACD line нь Signal line-аасаа дээд/доод талд байгаа эсэх
+        macd_up_state = macd_line_minus2 > macd_signal_minus2
+        macd_down_state = macd_line_minus2 < macd_signal_minus2
+        # -----------------------------------------------------------------
 
         return {
             "symbol": symbol,
@@ -201,12 +209,17 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
                 "-2": f"{macd_hist.iloc[-3]:.8f}",
                 "-3": f"{macd_hist.iloc[-4]:.8f}"
             },
-            # --- ШИНЭ ТӨЛӨВҮҮДҮҮДИЙГ ЭНД ОРУУЛАВ ---
             "macd_lineUp0": macd_line_up_0,
             "macd_linedown0": macd_line_down_0,
-            # --------------------------------------
-            "macd_up": current_trend == "UP",
-            "macd_down": current_trend == "DOWN",
+            
+            # Шинэчлэгдсэн утгууд:
+            "macd_up": macd_up_state,        # Кросс харахгүйгээр MACD > Signal байвал True
+            "macd_down": macd_down_state,    # Кросс харахгүйгээр MACD < Signal байвал True
+            "macd_upcross": macd_upcross,    # Яг кросс хийсэн мөч
+            "macd_downcross": macd_downcross,  # Яг кросс хийсэн мөч
+            
+            "macd_up_trend": current_trend == "UP",
+            "macd_down_trend": current_trend == "DOWN",
             "macd_min": f"{macd_min:.8f}",
             "macd_max": f"{macd_max:.8f}",
             "macd_uplimit": f"{macd_state[symbol]['uplimit']:.8f}" if macd_state[symbol]['uplimit'] is not None else None,
