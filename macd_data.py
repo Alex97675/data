@@ -209,17 +209,17 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
                 "-2": f"{macd_hist.iloc[-3]:.8f}",
                 "-3": f"{macd_hist.iloc[-4]:.8f}"
             },
-            "macd_lineUp0": macd_line_up_0,
-            "macd_linedown0": macd_line_down_0,
+            "macd_lineUp0": bool(macd_line_up_0),
+            "macd_linedown0": bool(macd_line_down_0),
             
             # Шинэчлэгдсэн утгууд:
-            "macd_up": macd_up_state,        # Кросс харахгүйгээр MACD > Signal байвал True
-            "macd_down": macd_down_state,    # Кросс харахгүйгээр MACD < Signal байвал True
-            "macd_upcross": macd_upcross,    # Яг кросс хийсэн мөч
-            "macd_downcross": macd_downcross,  # Яг кросс хийсэн мөч
+            "macd_up": bool(macd_up_state),        # Кросс харахгүйгээр MACD > Signal байвал True
+            "macd_down": bool(macd_down_state),    # Кросс харахгүйгээр MACD < Signal байвал True
+            "macd_upcross": bool(macd_upcross),    # Яг кросс хийсэн мөч
+            "macd_downcross": bool(macd_downcross),  # Яг кросс хийсэн мөч
             
-            "macd_up_trend": current_trend == "UP",
-            "macd_down_trend": current_trend == "DOWN",
+            "macd_up_trend": bool(current_trend == "UP"),
+            "macd_down_trend": bool(current_trend == "DOWN"),
             "macd_min": f"{macd_min:.8f}",
             "macd_max": f"{macd_max:.8f}",
             "macd_uplimit": f"{macd_state[symbol]['uplimit']:.8f}" if macd_state[symbol]['uplimit'] is not None else None,
