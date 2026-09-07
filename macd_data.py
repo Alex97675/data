@@ -12,9 +12,8 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         "uplimit_cross_line": None, "downlimit_cross_line": None,
         "trend": "None",
         "macd_initial_up_price": None, "macd_initial_up_time": None,
-        "macd_average_lineup": None,
+        "macd_average": None,  # Шинэ нэгдмэл дундаж утга
         "macd_initial_down_price": None, "macd_initial_down_time": None,
-        "macd_average_linedown": None,
         "signal_initial_up_price": None, "signal_initial_up_time": None,
         "signal_initial_down_price": None, "signal_initial_down_time": None
     }
@@ -78,17 +77,21 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         if found_macd_up and found_macd_down:
             break
 
+    max_up_peak = 0.0
+    min_down_trough = 0.0
+
     if up_start_idx != -1:
         up_vals = [float(macd_line.iloc[j]) for j in range(up_start_idx, len(macd_line))]
         if up_vals:
             max_up_peak = max(up_vals)
-            initial_st["macd_average_lineup"] = max_up_peak / 2.0
 
     if down_start_idx != -1:
         down_vals = [float(macd_line.iloc[j]) for j in range(down_start_idx, len(macd_line))]
         if down_vals:
             min_down_trough = min(down_vals)
-            initial_st["macd_average_linedown"] = min_down_trough / 2.0
+
+    # Оргил болон хонхорхойн нийлбэрийн дундаж
+    initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
 
     found_signal_up = False
     found_signal_down = False
@@ -222,6 +225,7 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
             "macd_down_trend": bool(current_trend == "DOWN"),
             "macd_min": f"{macd_min:.8f}",
             "macd_max": f"{macd_max:.8f}",
+            "macd_average": f"{macd_state[symbol].get('macd_average'):.8f}" if macd_state[symbol].get('macd_average') is not None else None,
             "macd_uplimit": f"{macd_state[symbol]['uplimit']:.8f}" if macd_state[symbol]['uplimit'] is not None else None,
             "macd_downlimit": f"{macd_state[symbol]['downlimit']:.8f}" if macd_state[symbol]['downlimit'] is not None else None,
             "macd_lineup_limit": f"{macd_state[symbol].get('macd_lineup_limit'):.8f}" if macd_state[symbol].get('macd_lineup_limit') is not None else None,
