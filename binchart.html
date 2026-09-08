@@ -438,6 +438,13 @@
                     window.macdArrayData = macdObj.macd_array;
                     window.signalArrayData = macdObj.signal_array;
                     window.histArrayData = macdObj.histogram_array;
+                    
+                    // --- ЭНД ШИНЭЭР НЭМНЭ ---
+                    window.currentMacdAvg = parseFloat(macdObj.macd_average || 0);
+                    const lineDict = macdObj.line || {};
+                    window.currentMacdLine1 = parseFloat(lineDict["-1"] || 0);
+                    window.currentMacdLine2 = parseFloat(lineDict["-2"] || 0);
+                    // -------------------------
                 }
 
                 draw();
