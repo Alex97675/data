@@ -702,9 +702,9 @@
 
         const activeGlobalIdx = startIdx + targetIdx;
         if (activeGlobalIdx >= 0 && activeGlobalIdx < macdArray.length) {
-            const mVal = Number(macdArray[activeGlobalIdx] || 0).toFixed(4);
-            const sVal = Number(signalArray[activeGlobalIdx] || 0).toFixed(4);
-            const hVal = Number(histArray[activeGlobalIdx] || 0).toFixed(4);
+            const mVal = Number(macdArray[activeGlobalIdx] || 0).toFixed(8);
+            const sVal = Number(signalArray[activeGlobalIdx] || 0).toFixed(8);
+            const hVal = Number(histArray[activeGlobalIdx] || 0).toFixed(8);
 
             ctx.font = "11px Arial";
             ctx.textBaseline = "top";
