@@ -194,6 +194,11 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
 
         return {
             "symbol": symbol,
+            # Бүтэн массивуудыг энд нэмж өгнө (Фронтенд зурахад ашиглагдана)
+            "macd_array": [float(val) for val in macd_line],
+            "signal_array": [float(val) for val in macd_signal],
+            "histogram_array": [float(val) for val in macd_hist],
+            
             "line": {
                 "0": f"{macd_line.iloc[-1]:.8f}",
                 "-1": f"{macd_line.iloc[-2]:.8f}",
