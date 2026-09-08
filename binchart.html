@@ -758,16 +758,23 @@
         ctx.beginPath(); ctx.moveTo(padding, y30); ctx.lineTo(padding + chartWidth, y30); ctx.stroke();
         ctx.setLineDash([]);
 
-        // RSI Шугам зурах (Серверээс ирсэн массивыг index-ээр нь холбоно)
+        // RSI Шугам зурах (Баруун талаас буюу сүүлийн лаанаас эхэлж индекс хоорондын зөрүүг тэгшитгэх)
         ctx.strokeStyle = "#e91e63";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         
-        const startIdx = allData.length - data.length; // Visible хэсгийн индекс тооцох
+        // allData болон rsiArray-ийн уртын зөрүүг тооцож баруун талаас нь тааруулна
+        const rsiOffset = rsiArray.length - allData.length;
+        const startIdx = (allData.length - data.length) + rsiOffset;
+
         data.forEach((d, i) => {
-            const globalIdx = startIdx + i;
+            const rsiIndex = startIdx + i;
             const x = padding + i * candleWidth + candleWidth / 2;
-            const rVal = rsiArray[globalIdx] !== undefined ? rsiArray[globalIdx] : 50;
+            
+            // Хэрэв индекс хүрэхгүй байвал 50 гэсэн дундаж утга авна
+            const rVal = (rsiIndex >= 0 && rsiIndex < rsiArray.length && rsiArray[rsiIndex] !== undefined) 
+                ? rsiArray[rsiIndex] 
+                : 50;
             const y = rsiToY(rVal);
             
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -783,9 +790,9 @@
             }
         }
 
-        const activeGlobalIdx = startIdx + targetIdx;
-        if (rsiArray[activeGlobalIdx] !== undefined) {
-            const rVal = Number(rsiArray[activeGlobalIdx]).toFixed(2);
+        const activeRsiIndex = startIdx + targetIdx;
+        if (activeRsiIndex >= 0 && activeRsiIndex < rsiArray.length && rsiArray[activeRsiIndex] !== undefined) {
+            const rVal = Number(rsiArray[activeRsiIndex]).toFixed(2);
             ctx.font = "11px Arial";
             ctx.textBaseline = "top";
             
