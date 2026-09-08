@@ -421,6 +421,58 @@
                     drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
                                 }
 
+                    // --- ОХЛС БОЛОН ҮНДСЭН МЭДЭЭЛЛИЙГ ЗҮҮН ДЭЭД БУЛАНД ХАРУУЛАХ ---
+                    let activeCandle = data[data.length - 1]; // Үндсэн утга (хамгийн сүүлийн лаа)
+                    
+                    if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
+                        const index = Math.floor((mouse.x - padding) / candleWidth);
+                        if (data[index]) {
+                            activeCandle = data[index]; // Хулгана дээр байгаа лааны утга
+                        }
+                    }
+
+                    if (activeCandle) {
+                        const oVal = formatPrice(activeCandle[1]);
+                        const hVal = formatPrice(activeCandle[2]);
+                        const lVal = formatPrice(activeCandle[3]);
+                        const cVal = formatPrice(activeCandle[4]);
+                        const isBull = activeCandle[4] >= activeCandle[1];
+                        const colorCode = isBull ? "#0ecb81" : "#f6465d";
+
+                        ctx.font = "11px Arial";
+                        ctx.textBaseline = "top";
+                        let startX = padding + 10;
+                        let startY = padding + 5;
+
+                        ctx.fillStyle = "#888";
+                        ctx.fillText(`${symbol}  O:`, startX, startY);
+                        let w1 = ctx.measureText(`${symbol}  O:`).width;
+
+                        ctx.fillStyle = colorCode;
+                        ctx.fillText(oVal, startX + w1, startY);
+                        let w2 = ctx.measureText(oVal + "  H:").width;
+
+                        ctx.fillStyle = "#888";
+                        ctx.fillText("H:", startX + w1, startY); // adjust layout
+                        // Илүү цэвэрхэн байрлуулахын тулд дарааллаар нь бичнэ:
+                        
+                        let curX = startX;
+                        const drawTextLabel = (label, val, valColor) => {
+                            ctx.fillStyle = "#888";
+                            ctx.fillText(label, curX, startY);
+                            curX += ctx.measureText(label).width;
+                            ctx.fillStyle = valColor || "#fff";
+                            ctx.fillText(val + "  ", curX, startY);
+                            curX += ctx.measureText(val + "  ").width;
+                        };
+
+                        curX = startX;
+                        drawTextLabel(symbol + "  O:", oVal, colorCode);
+                        drawTextLabel("H:", hVal, "#fff");
+                        drawTextLabel("L:", lVal, "#fff");
+                        drawTextLabel("C:", cVal, colorCode);
+                    }
+
                 let liveInterval = null;
 
                 function startServerPolling() {
@@ -715,6 +767,41 @@
 
             ctx.fillStyle = Number(hVal) >= 0 ? "#0ecb81" : "#f6465d";
             ctx.fillText(hVal, startX + w1 + w2 + w3 + w4 + w5, startY);
+        }
+        // --- MACD УТГУУДЫГ ХАРУУЛАХ (Хулганы байрлалаас хамаарна) ---
+        let targetIdx = data.length - 1; // Анхдагч нь хамгийн сүүлийн лаа
+        
+        if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
+            const mIdx = Math.floor((mouse.x - padding) / candleWidth);
+            if (mIdx >= 0 && mIdx < data.length) {
+                targetIdx = mIdx;
+            }
+        }
+
+        if (targetIdx >= 0 && targetIdx < data.length) {
+            const mVal = macdData.macdLine[targetIdx].toFixed(4);
+            const sVal = macdData.signalLine[targetIdx].toFixed(4);
+            const hVal = macdData.histogram[targetIdx].toFixed(4);
+
+            ctx.font = "11px Arial";
+            ctx.textBaseline = "top";
+            
+            let startX = padding + 10;
+            let startY = macdTop + 6;
+
+            let curX = startX;
+            const drawMacdLabel = (label, val, valColor) => {
+                ctx.fillStyle = "#888";
+                ctx.fillText(label, curX, startY);
+                curX += ctx.measureText(label).width;
+                ctx.fillStyle = valColor;
+                ctx.fillText(val + "  ", curX, startY);
+                curX += ctx.measureText(val + "  ").width;
+            };
+
+            drawMacdLabel("MACD(12, 26, 9):", mVal, "#2962ff");
+            drawMacdLabel("Signal:", sVal, "#ff9800");
+            drawMacdLabel("Hist:", hVal, Number(hVal) >= 0 ? "#0ecb81" : "#f6465d");
         }
     }
     </script>
