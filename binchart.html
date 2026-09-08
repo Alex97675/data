@@ -432,8 +432,8 @@
                         drawTextLabel("C:", cVal, colorCode);
                     }
 
-                    // MACD-г зуруулах
-                    drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
+                    // MACD-г зуруулах хэсгийг ингэж өөрчилж хулганаа дамжуулна:
+                    drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouse);
                 }
 
                 let liveInterval = null;
@@ -634,8 +634,8 @@
         return { macdLine, signalLine, histogram };
     }
     
-    // --- MACD ZURAH FUNKC ---
-    function drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth) {
+    // --- MACD ЗУРАХ ФУНКЦ ---
+    function drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
         const closes = data.map(d => d[4]);
         const macdData = calculateMACD(closes);
     
@@ -687,11 +687,11 @@
         });
         ctx.stroke();
 
-        // --- MACD УТГУУДЫГ ХАРУУЛАХ ---
+        // --- ХУЛГАНЫ БАЙРЛАЛААС ХАМААРЧ MACD УТГИЙГ ӨӨРЧЛӨХ ---
         let targetIdx = data.length - 1; // Анхдагч нь хамгийн сүүлийн лаа
         
-        if (typeof mouse !== 'undefined' && mouse && mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
-            const mIdx = Math.floor((mouse.x - padding) / candleWidth);
+        if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
+            const mIdx = Math.floor((mouseObj.x - padding) / candleWidth);
             if (mIdx >= 0 && mIdx < data.length) {
                 targetIdx = mIdx;
             }
@@ -722,6 +722,7 @@
             drawMacdLabel("Signal:", sVal, "#ff9800");
             drawMacdLabel("Hist:", hVal, Number(hVal) >= 0 ? "#0ecb81" : "#f6465d");
         }
+    }
     }
     </script>
 </body>
