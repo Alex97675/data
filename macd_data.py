@@ -82,10 +82,38 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
     positive_vals = [v for v in all_macd_vals if v > 0]
     negative_vals = [v for v in all_macd_vals if v < 0]
 
-    max_up_peak = max(positive_vals) if positive_vals else 0.0
-    min_down_trough = min(negative_vals) if negative_vals else 0.0
+    max_up_peak = 0.0
+    min_down_trough = 0.0
 
-    # Хамгийн өндөр оргил болон хамгийн гүн хонхорхойн дундаж
+    # 0-ийн кросс болсон цэгүүдийг олох (0-ээс дээш гарсан болон доош орсон)
+    up_crossings = []
+    down_crossings = []
+
+    for i in range(1, len(macd_line)):
+        curr = float(macd_line.iloc[i])
+        prev = float(macd_line.iloc[i-1])
+        
+        if prev <= 0 and curr > 0:
+            up_crossings.append(i)
+        elif prev >= 0 and curr < 0:
+            down_crossings.append(i)
+
+    # Хэрэв өсөлтийн кросс олдвол хамгийн сүүлийн өсөлтийн волн доторх хамгийн өндөр оргилыг олох
+    if up_crossings:
+        last_up_start = up_crossings[-1]
+        # Дараагийн 0 кросс хүртэл эсвэл сүүл хүртэлх хэсэг
+        wave_ups = [float(macd_line.iloc[j]) for j in range(last_up_start, len(macd_line)) if float(macd_line.iloc[j]) > 0]
+        if wave_ups:
+            max_up_peak = max(wave_ups)
+
+    # Хэрэв уналтын кросс олдвол хамгийн сүүлийн уналтын волн доторх хамгийн гүн хонхорхойг олох
+    if down_crossings:
+        last_down_start = down_crossings[-1]
+        wave_downs = [float(macd_line.iloc[j]) for j in range(last_down_start, len(macd_line)) if float(macd_line.iloc[j]) < 0]
+        if wave_downs:
+            min_down_trough = min(wave_downs)
+
+    # Чиний хүссэнчлэн кросс волны оргил болон хонхорхойн дундаж
     initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
 
     found_signal_up = False
