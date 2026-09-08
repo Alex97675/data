@@ -45,7 +45,7 @@
 
             <script>
             (function() {
-                const currentScript = document.currentScript;
+                const currentScript = .currentScript;
                 if (!currentScript) return;
 
                 const controlHTML = `
@@ -90,12 +90,12 @@
 
                 currentScript.insertAdjacentHTML('beforebegin', controlHTML);
 
-                const controls = document.querySelector('.controls-container');
+                const controls = .querySelector('.controls-container');
                 controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-2 bg-black/40 px-3 py-1.5 rounded-lg border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
 
                 async function fetchAndPopulateSymbols() {
-                    const marketEl = document.getElementById("market");
-                    const coinList = document.getElementById('coin-list');
+                    const marketEl = .getElementById("market");
+                    const coinList = .getElementById('coin-list');
                     
                     if (coinList) coinList.innerHTML = '';
 
@@ -107,7 +107,7 @@
                     try {
                         const response = await fetch(url);
                         const data = await response.json();
-                        if (!document.getElementById('coin-list')) return;
+                        if (!.getElementById('coin-list')) return;
 
                         const symbols = data.symbols || [];
                         let usdtSymbols = [];
@@ -178,11 +178,13 @@
                 const marketEl = document.getElementById("market");
                 const intervalEl = document.getElementById("interval");
                 const coinEl = document.getElementById("coin");
-
+        
+                // Энд глобал байдлаар зарлана
+                window.allData = [];
+                window.rsiArrayData = [];
+        
                 let symbol = coinEl && coinEl.value ? coinEl.value.toUpperCase() : "BTCUSDT";
                 let interval = intervalEl ? intervalEl.value : "1m";
-                let allData = [];
-                let rsiArrayData = []; // <-- Энд зарлана
                 let visibleCount = 80;
                 let offset = 0;
                 const minVisible = 20;
