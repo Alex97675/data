@@ -182,6 +182,7 @@
                 let symbol = coinEl && coinEl.value ? coinEl.value.toUpperCase() : "BTCUSDT";
                 let interval = intervalEl ? intervalEl.value : "1m";
                 let allData = [];
+                let rsiArrayData = []; // <-- Энд зарлана
                 let visibleCount = 80;
                 let offset = 0;
                 const minVisible = 20;
@@ -221,8 +222,9 @@
                 async function fetchCandles() {
                     if (!marketEl || !coinEl) return;
                     if (!symbol) symbol = "BTCUSDT";
-                
+                    
                     try {
+                        // Лаа болон RSI датаг зэрэг татах
                         const [resCandles, resRsi] = await Promise.all([
                             fetch(`/candles/${symbol}`),
                             fetch(`/rsi/${symbol}`)
@@ -233,12 +235,12 @@
                         const candleData = await resCandles.json();
                         const rsiData = await resRsi.json();
 
-                        // Лааны дата
+                        // Лааны датаг оноох
                         allData = (candleData.candles || []).map(d => [
                             Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                         ]);
 
-                        // rsi_data.py-аас ирсэн бодит rsi_array-г шууд оноох
+                        // Серверээс ирсэн rsi_array-г оноох
                         if (rsiData.rsi_array) {
                             rsiArrayData = rsiData.rsi_array;
                         }
@@ -433,8 +435,8 @@
                     // MACD-г зуруулах хэсгийг ингэж өөрчилж хулганаа дамжуулна:
                     drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouse);
 
-                    // RSI-г зуруулах
-                    drawRSI(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouse);
+                    // RSI-г зуруулахдаа серверээс авсан rsiArrayData-гаа дамжуулна
+                    drawRSI(ctx, data, rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse);
                 }
 
                 let liveInterval = null;
