@@ -349,7 +349,7 @@
                     }
                     ctx.textAlign = "left";
 
-                    // Лаануудыг зурах (Чиний хүссэн Ногоон ба Цагаан чамин дизайн 🕯️)
+                    // Лаануудыг зурах (Ногоон ба Цагаан дизайн 🕯️)
                     data.forEach((d, i) => {
                         const open = d[1], high = d[2], low = d[3], close = d[4];
                         const x = padding + i * candleWidth;
@@ -359,33 +359,27 @@
                         const yL = priceToY(low);
                         const bull = close >= open;
 
-                        // Гэрэлтсэн уусгалт үүсгэх (Glow эффект)
                         const grd = ctx.createLinearGradient(x, yH, x, yL);
                         if (bull) {
-                            grd.addColorStop(0, "#3ee69b"); // Ногоон гэрэлтэлт
+                            grd.addColorStop(0, "#3ee69b");
                             grd.addColorStop(1, "#0ecb81");
                         } else {
-                            grd.addColorStop(0, "#ffffff"); // Цагаан тансаг гэрэлтэлт
+                            grd.addColorStop(0, "#ffffff");
                             grd.addColorStop(1, "#ffffff");
                         }
 
                         ctx.fillStyle = grd;
                         ctx.strokeStyle = bull ? "#0ecb81" : "#ffffff";
                         
-                        // Ноорог шугамыг үл мэдэг гэрэлтүүлэх (Neon Shadow)
                         ctx.shadowColor = bull ? "#0ecb81" : "#ffffff";
                         ctx.shadowBlur = 1;
                         
-                        // Лааны сүүдэр (Wick) зурах
                         ctx.beginPath(); 
                         ctx.moveTo(x + candleWidth / 2, yH); 
                         ctx.lineTo(x + candleWidth / 2, yL); 
                         ctx.stroke();
                         
-                        // Лааны бие (Body) зурах
                         ctx.fillRect(x + candleWidth * 0.2, Math.min(yO, yC), candleWidth * 0.6, Math.max(1, Math.abs(yO - yC)));
-                        
-                        // Дараагийн элементүүдэд сүүдэр нөлөөлөхөөс сэргийлж унтраах
                         ctx.shadowBlur = 0;
                     });
 
@@ -417,6 +411,49 @@
                             ctx.fillStyle = "#fff"; ctx.fillText(formatPrice(price), padding + chartWidth + 5, mouse.y + 4);
                         }
                     }
+
+                    // --- ОХЛС МЭДЭЭЛЛИЙГ ЗҮҮН ДЭЭД БУЛАНД ХАРУУЛАХ (Энд `data` хувьсагч бүрэн бэлэн байна) ---
+                    let activeCandle = data[data.length - 1]; // Анхдагч нь хамгийн сүүлийн лаа
+                    
+                    if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
+                        const index = Math.floor((mouse.x - padding) / candleWidth);
+                        if (data[index]) {
+                            activeCandle = data[index]; // Хулгана дээр байгаа лааны утга
+                        }
+                    }
+
+                    if (activeCandle) {
+                        const oVal = formatPrice(activeCandle[1]);
+                        const hVal = formatPrice(activeCandle[2]);
+                        const lVal = formatPrice(activeCandle[3]);
+                        const cVal = formatPrice(activeCandle[4]);
+                        const isBull = activeCandle[4] >= activeCandle[1];
+                        const colorCode = isBull ? "#0ecb81" : "#f6465d";
+
+                        ctx.font = "11px Arial";
+                        ctx.textBaseline = "top";
+                        let startX = padding + 10;
+                        let startY = padding + 5;
+
+                        let curX = startX;
+                        const drawTextLabel = (label, val, valColor) => {
+                            ctx.fillStyle = "#888";
+                            ctx.fillText(label, curX, startY);
+                            curX += ctx.measureText(label).width;
+                            ctx.fillStyle = valColor || "#fff";
+                            ctx.fillText(val + "  ", curX, startY);
+                            curX += ctx.measureText(val + "  ").width;
+                        };
+
+                        drawTextLabel(symbol + "  O:", oVal, colorCode);
+                        drawTextLabel("H:", hVal, "#fff");
+                        drawTextLabel("L:", lVal, "#fff");
+                        drawTextLabel("C:", cVal, colorCode);
+                    }
+
+                    // MACD-г зуруулах
+                    drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
+                }
                     // MACD-г дуудаж зуруулах (Хамгийн бага код!)
                     drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
                                 }
