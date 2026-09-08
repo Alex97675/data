@@ -77,20 +77,15 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         if found_macd_up and found_macd_down:
             break
 
-    max_up_peak = 0.0
-    min_down_trough = 0.0
+    # Бүх MACD шугам дээрх эерэг утгуудаас хамгийн өндөр оргилыг олох
+    all_macd_vals = [float(v) for v in macd_line]
+    positive_vals = [v for v in all_macd_vals if v > 0]
+    negative_vals = [v for v in all_macd_vals if v < 0]
 
-    if up_start_idx != -1:
-        up_vals = [float(macd_line.iloc[j]) for j in range(up_start_idx, len(macd_line))]
-        if up_vals:
-            max_up_peak = max(up_vals)
+    max_up_peak = max(positive_vals) if positive_vals else 0.0
+    min_down_trough = min(negative_vals) if negative_vals else 0.0
 
-    if down_start_idx != -1:
-        down_vals = [float(macd_line.iloc[j]) for j in range(down_start_idx, len(macd_line))]
-        if down_vals:
-            min_down_trough = min(down_vals)
-
-    # Оргил болон хонхорхойн нийлбэрийн дундаж
+    # Хамгийн өндөр оргил болон хамгийн гүн хонхорхойн дундаж
     initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
 
     found_signal_up = False
