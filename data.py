@@ -16,6 +16,7 @@ from ohlc_data import calculate_ohlc_tracker_report
 from rsi_data import calculate_rsi_report
 from ema_data import calculate_ema_report
 from macd_data import calculate_macd_report, _build_initial_macd_state, macd_state
+from binchart import BINCHART_HTML
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -285,9 +286,12 @@ def get_symbol_all_data(symbol: str):
     
 @app.get("/binchart", response_class=HTMLResponse)
 def get_binchart():
-    # Энд өөрийнхөө HTML кодын бүтэн агуулгыг (эсвэл файлаас уншаад) буцааж өгөхөд л болно
-    with open("path/to/binchart.html", "r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with open("binchart.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="binchart.html файл олдсонгүй!")
+        
 # ==================== API / DATA ====================
 def get_active_symbols():
     try:
