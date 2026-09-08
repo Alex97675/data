@@ -349,7 +349,7 @@
                     }
                     ctx.textAlign = "left";
 
-                    // Лаануудыг зурах (Ногоон ба Цагаан дизайн 🕯️)
+                    // Лаануудыг зурах
                     data.forEach((d, i) => {
                         const open = d[1], high = d[2], low = d[3], close = d[4];
                         const x = padding + i * candleWidth;
@@ -413,12 +413,12 @@
                     }
 
                     // --- ОХЛС МЭДЭЭЛЛИЙГ ЗҮҮН ДЭЭД БУЛАНД ХАРУУЛАХ ---
-                    let activeCandle = data[data.length - 1]; // Анхдагч нь хамгийн сүүлийн лаа
+                    let activeCandle = data[data.length - 1]; 
                     
                     if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
                         const index = Math.floor((mouse.x - padding) / candleWidth);
                         if (data[index]) {
-                            activeCandle = data[index]; // Хулгана дээр байгаа лааны утга
+                            activeCandle = data[index]; 
                         }
                     }
 
@@ -453,9 +453,7 @@
 
                     // MACD-г зуруулах
                     drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
-                } 
-                    // --- ОХЛС БОЛОН ҮНДСЭН МЭДЭЭЛЛИЙГ ЗҮҮН ДЭЭД БУЛАНД ХАРУУЛАХ ---
-                    let activeCandle = data[data.length - 1]; // Үндсэн утга (хамгийн сүүлийн лаа)
+                } // <--- draw() функц яг энд төгсгөл болох ёстой.
                     
                     if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
                         const index = Math.floor((mouse.x - padding) / candleWidth);
