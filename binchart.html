@@ -233,31 +233,31 @@
 
                 async function fetchCandles() {
                     if (!marketEl || !coinEl) return;
-
-                    // Ensure symbol is valid
                     if (!symbol) symbol = "BTCUSDT";
                     
-                    let url;
-                    if (marketEl.value === "futures") {
-                        url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=500`;
-                    } else {
-                        url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`;
-                    }
-
+                    let url = `/candles/${symbol}`; // Railway сервер дээрх дата
+                
                     try {
-                        console.log(`[FetchCandles] Fetching historical data from: ${url}`);
+                        console.log(`[FetchCandles] Серверээс дата татаж байна: ${url}`);
                         const res = await fetch(url);
                         if (!res.ok) {
-                            throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
+                            throw new Error(`HTTP error! status: ${res.status}`);
                         }
-                        allData = (await res.json()).map(d => [
+                        const data = await res.json();
+                        
+                        allData = (data.candles || []).map(d => [
                             Number(d[0]),  
-                            Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                            Number(d[1]), 
+                            Number(d[2]), 
+                            Number(d[3]), 
+                            Number(d[4]), 
+                            Number(d[5])
                         ]);
-                        console.log(`[FetchCandles] Fetched ${allData.length} candles for ${symbol} (${interval}) on ${marketEl.value}`);
+                
+                        console.log(`[FetchCandles] ${allData.length} лаа амжилттай татагдлаа.`);
                         draw();
                         dispatchChartUpdate();
-                        startWebSocket(); // ← Түүхэн дата амжилттай ирэхэд Bypass сувгийг асаана
+                        startServerPolling(); // Binance руу биш серверийн санах ой руу холбогдоно
                     } catch (e) {
                         console.error("Error fetching candles:", e);
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -265,7 +265,6 @@
                         ctx.font = "16px Arial";
                         ctx.textAlign = "center";
                         ctx.fillText(`Error fetching data: ${e.message}`, canvas.width / 2, canvas.height / 2);
-                        if (socket) { socket.onclose = null; socket.close(); socket = null; }
                     }
                 }
 
@@ -423,88 +422,64 @@
                     }
                 }
 
-                // 🚨 МАНАЙ ГОЛ ХАК БУЮУ BYPASS WEBSOCKET ENGINE ХЭСЭГ
+                let liveInterval = null;
+
                 function startWebSocket() {
-                    if (socket) {
-                        socket.onclose = null;
-                        socket.close();
-                        console.log(`[Bypass Engine] Closed previous socket`);
-                    }
-
+                    if (liveInterval) clearInterval(liveInterval);
+                
                     let currentCoin = coinEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '') || "BTCUSDT";
-
-                    // 🚨 ТӨГС БҮТЭЦ: Фьючерсийн дан урсгалын хоригийг тойрч, Монголд 100% нээлттэй Спот сувгаар амьд импульс авна
-                    const wsUrl = `wss://stream.binance.com/ws/${currentCoin.toLowerCase()}@kline_1m`;
-                    
-                    console.log(`[Bypass Engine WS] Холбогдож байна: ${wsUrl}`);
-                    socket = new WebSocket(wsUrl);
-
+                    symbol = currentCoin;
+                
                     const dot = document.getElementById('ws-dot');
                     const text = document.getElementById('ws-text');
-
-                    socket.onopen = () => {
-                        console.log(`[Bypass Engine WS] Opened for ${currentCoin} on ${marketEl.value.toUpperCase()}`);
-                        if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
-                        if (text) {
-                            text.innerText = `${marketEl.value.toUpperCase()} LIVE`;
-                            text.className = "text-[9px] font-black uppercase text-green-500";
-                        }
-                    };
-
-                    socket.onerror = (error) => {
-                        console.error(`[Bypass Engine WS] Error:`, error);
-                        if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-red-500";
-                        if (text) text.innerText = "Error";
-                    };
-
-                    socket.onclose = (event) => {
-                        console.log(`[Bypass Engine WS] Closed. Code: ${event.code}`);
-                        if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-gray-600";
-                        if (text) text.innerText = "Offline";
-                    };
-
-                    socket.onmessage = e => { 
-                        const responseData = JSON.parse(e.data);
-                        
-                        // Спотын сувгаар орж ирж байгаа датаг шууд responseData.k-аар уншина
-                        if (responseData.k) {
-                            const k = responseData.k;
-                            
-                            if (dot) dot.style.opacity = (dot.style.opacity === '1') ? '0.5' : '1';
-
-                            // Бүх стринг утгуудыг Тоо (Number) болгож бэлдэнэ
-                            const openPrice  = Number(k.o);
-                            const highPrice  = Number(k.h);
-                            const lowPrice   = Number(k.l);
-                            const closePrice = Number(k.c);
-                            const volume     = Number(k.v);
-                            const klineTime  = Number(k.t);
-
-                            const currentCandle = [klineTime, openPrice, highPrice, lowPrice, closePrice, volume]; 
-                            
-                            if (allData && allData.length > 0) {
-                                const lastCandle = allData[allData.length - 1]; 
-                                
-                                // Минут дуусаагүй бол секунд тутамд хамгийн сүүлийн лааг шинэчлэн бүжиглүүлнэ
-                                if (lastCandle && lastCandle[0] === currentCandle[0]) {
-                                    allData[allData.length - 1] = currentCandle; 
-                                } else { 
-                                    // Минут солигдвол шинэ лаа болгон ард нь залгана
-                                    allData.push(currentCandle); 
-                                    if (allData.length > 500) allData.shift(); 
-                                } 
-                                
-                                // Графикийг секунд тутамд шинэчлэн зурж "амьд организм" болгох
+                
+                    if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+                    if (text) {
+                        text.innerText = "SERVER LIVE";
+                        text.className = "text-[9px] font-black uppercase text-green-500";
+                    }
+                
+                    console.log(`[Server Sync] ${symbol} коины амьд холболт эхэллээ.`);
+                
+                    // Серверийн санах ойноос 2 секунд тутамд хамгийн сүүлийн лааны датаг татаж шинэчлэх
+                    liveInterval = setInterval(async () => {
+                        try {
+                            let res = await fetch(`/candles/${symbol}`);
+                            if (!res.status === 200) return;
+                            let data = await res.json();
+                            if (!data.candles || data.candles.length === 0) return;
+                
+                            let serverKlines = data.candles.map(d => [
+                                Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                            ]);
+                
+                            if (serverKlines.length > 0) {
+                                let latestServerCandle = serverKlines[serverKlines.length - 1];
+                                let lastLocalCandle = allData[allData.length - 1];
+                
+                                if (dot) dot.style.opacity = (dot.style.opacity === '1') ? '0.5' : '1';
+                
+                                if (lastLocalCandle && lastLocalCandle[0] === latestServerCandle[0]) {
+                                    // Одоогийн минут үргэлжилж байгаа бол сүүлийн лааг шинэчилнэ
+                                    allData[allData.length - 1] = latestServerCandle;
+                                } else if (latestServerCandle[0] > lastLocalCandle[0]) {
+                                    // Шинэ минут гарсан байвал ард нь нэмнэ
+                                    allData.push(latestServerCandle);
+                                    if (allData.length > 500) allData.shift();
+                                }
+                
                                 draw();
-                                
                                 if (typeof window.dispatchChartUpdate === 'function') {
                                     window.dispatchChartUpdate();
                                 }
                             }
-                        } 
-                    };
+                        } catch (err) {
+                            console.error("[Server Sync Error]:", err);
+                            if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-red-500";
+                            if (text) text.innerText = "Error";
+                        }
+                    }, 2000);
                 }
-
                 let updateTimer = null;
                 const triggerAutoUpdate = () => {
                     if (updateTimer) clearTimeout(updateTimer);
