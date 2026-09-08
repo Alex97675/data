@@ -621,7 +621,7 @@
         return { macdLine, signalLine, histogram };
     }
     
-    // --- MACD ZURAH FUNKC ---
+    // --- MACD ZURAH FUNKC (Утгуудыг зүүн дээд буланд харуулах хэсэгтэй) ---
     function drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth) {
         const closes = data.map(d => d[4]);
         const macdData = calculateMACD(closes);
@@ -644,6 +644,7 @@
         ctx.lineTo(padding + chartWidth, macdTop);
         ctx.stroke();
     
+        // Histogram (Баганууд)
         data.forEach((d, i) => {
             const x = padding + i * candleWidth;
             const hVal = macdData.histogram[i];
@@ -654,6 +655,7 @@
             ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
         });
     
+        // MACD Line
         ctx.strokeStyle = "#2962ff";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -664,6 +666,7 @@
         });
         ctx.stroke();
     
+        // Signal Line
         ctx.strokeStyle = "#ff9800";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -673,8 +676,47 @@
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
+
+        // --- BINANCE ШИГ ЗҮҮН ДЭЭД БУЛАНД УТГУУДЫГ ХАРУУЛАХ ---
+        const lastIdx = data.length - 1;
+        if (lastIdx >= 0) {
+            const mVal = macdData.macdLine[lastIdx].toFixed(4);
+            const sVal = macdData.signalLine[lastIdx].toFixed(4);
+            const hVal = macdData.histogram[lastIdx].toFixed(4);
+
+            ctx.font = "11px Arial";
+            ctx.textBaseline = "top";
+            
+            let startX = padding + 10;
+            let startY = macdTop + 6;
+
+            // Гарчиг болон MACD утга (Цэнхэр)
+            ctx.fillStyle = "#888";
+            ctx.fillText("MACD(12, 26, 9):", startX, startY);
+            let w1 = ctx.measureText("MACD(12, 26, 9): ").width;
+
+            ctx.fillStyle = "#2962ff";
+            ctx.fillText(mVal, startX + w1, startY);
+            let w2 = ctx.measureText(mVal + "  ").width;
+
+            // Signal утга (Улбар шар)
+            ctx.fillStyle = "#888";
+            ctx.fillText("Signal: ", startX + w1 + w2, startY);
+            let w3 = ctx.measureText("Signal: ").width;
+
+            ctx.fillStyle = "#ff9800";
+            ctx.fillText(sVal, startX + w1 + w2 + w3, startY);
+            let w4 = ctx.measureText(sVal + "  ").width;
+
+            // Histogram / Өөрчлөлт (Ногоон эсвэл Улаан)
+            ctx.fillStyle = "#888";
+            ctx.fillText("Hist: ", startX + w1 + w2 + w3 + w4, startY);
+            let w5 = ctx.measureText("Hist: ").width;
+
+            ctx.fillStyle = Number(hVal) >= 0 ? "#0ecb81" : "#f6465d";
+            ctx.fillText(hVal, startX + w1 + w2 + w3 + w4 + w5, startY);
+        }
     }
-    </script>
 
 </body>
 </html>
