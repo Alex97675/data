@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import websocket
 from binance.um_futures import UMFutures
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 import uvicorn
 import requests
 import pandas as pd
@@ -326,6 +327,91 @@ def process_closed_kline(symbol, k):
         closed_kline_count += 1
         last_kline_time = time.time()
 
+@app.get("/charts", response_class=HTMLResponse)
+def show_charts():
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="mn">
+    <head>
+        <meta charset="UTF-8">
+        <title>Crypto Live Charts</title>
+        <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+        <style>
+            body { background-color: #121212; color: #ffffff; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+            h1 { text-align: center; color: #00ffcc; }
+            .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+            .card { background: #1e1e1e; border-radius: 8px; padding: 15px; width: 450px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            .title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #ff9900; }
+            .chart-box { width: 100%; height: 250px; }
+        </style>
+    </head>
+    <body>
+        <h1>🎯 Сонгогдсон Коинуудын Live Лаа График</h1>
+        <div class="container" id="charts-container">Ачаалж байна...</div>
+
+        <script>
+            async function loadCharts() {
+                try {
+                    let res = await fetch('/selected-symbols');
+                    let data = await res.json();
+                    let symbols = data.selected_symbols;
+
+                    let container = document.getElementById('charts-container');
+                    if (symbols.length === 0) {
+                        container.innerHTML = "<p>Сонгогдсон коин одоогоор алга байна. (/choose/{symbol} ашиглана уу)</p>";
+                        return;
+                    }
+
+                    container.innerHTML = "";
+
+                    for (let symbol of symbols) {
+                        let card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `<div class="title">${symbol} (1m)</div><div class="chart-box" id="chart-${symbol}"></div>`;
+                        container.appendChild(card);
+
+                        let chartDom = document.getElementById(`chart-${symbol}`);
+                        let chart = LightweightCharts.createChart(chartDom, {
+                            layout: { background: { type: 'solid', color: '#1e1e1e' }, textColor: '#d1d4dc' },
+                            grid: { vertLines: { color: '#2B2B43' }, horzLines: { color: '#2B2B43' } },
+                            timeScale: { timeVisible: true, secondsVisible: false }
+                        });
+
+                        let candleSeries = chart.addCandlestickSeries({
+                            upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+                            wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+                        });
+
+                        // Тухайн коины лааны датаг татаж авах
+                        let klinesRes = await fetch(`/candles/${symbol}`);
+                        let klinesData = await klinesRes.json();
+                        
+                        if (klinesData.candles) {
+                            let formattedData = klinesData.candles.map(k => ({
+                                time: Math.floor(k[0] / 1000), // Секунд рүү шилжүүлэх
+                                open: k[1],
+                                high: k[2],
+                                low: k[3],
+                                close: k[4]
+                            }));
+                            candleSeries.setData(formattedData);
+                            chart.timeScale().fitContent();
+                        }
+                    }
+                } catch (e) {
+                    console.error("График ачаалахад алдаа гарлаа:", e);
+                }
+            }
+
+            loadCharts();
+            // Хүсвэл 10 секунд тутамд шинэчлэх боломжтой
+            setInterval(loadCharts, 10000);
+        </script>
+    </body>
+    </html>
+    """
+    return html_content
+    
 # ==================== WEBSOCKET ====================
 def start_websocket(symbols):
     global ws_app, daemon_is_running
