@@ -640,8 +640,8 @@
         return { macdLine, signalLine, histogram };
     }
 
-    // --- RSI ТООЦООЛОЛ (Period: 14) ---
-    function calculateRSI(closes, period = 14) {
+    // --- RSI ТООЦООЛОЛ (Period: 7) ---
+    function calculateRSI(closes, period = 7) {
         let rsiArray = new Array(closes.length).fill(50);
         if (closes.length < period + 1) return rsiArray;
 
@@ -769,7 +769,7 @@
     // --- RSI ЗУРАХ ФУНКЦ ---
     function drawRSI(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
         const closes = data.map(d => d[4]);
-        const rsiValues = calculateRSI(closes, 14);
+        const rsiValues = calculateRSI(closes, 7);
 
         const mainChartHeight = chartHeight * 0.60;
         const macdHeight = chartHeight * 0.20;
@@ -828,8 +828,8 @@
             let startY = rsiTop + 6;
 
             ctx.fillStyle = "#888";
-            ctx.fillText("RSI(14): ", startX, startY);
-            let w1 = ctx.measureText("RSI(14): ").width;
+            ctx.fillText("RSI(7): ", startX, startY);
+            let w1 = ctx.measureText("RSI(7): ").width;
 
             ctx.fillStyle = "#e91e63";
             ctx.fillText(rVal, startX + w1, startY);
