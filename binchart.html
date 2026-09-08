@@ -424,7 +424,7 @@
 
                 let liveInterval = null;
 
-                function startWebSocket() {
+                function startServerPolling() {
                     if (liveInterval) clearInterval(liveInterval);
                 
                     let currentCoin = coinEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '') || "BTCUSDT";
@@ -439,13 +439,10 @@
                         text.className = "text-[9px] font-black uppercase text-green-500";
                     }
                 
-                    console.log(`[Server Sync] ${symbol} коины амьд холболт эхэллээ.`);
-                
-                    // Серверийн санах ойноос 2 секунд тутамд хамгийн сүүлийн лааны датаг татаж шинэчлэх
                     liveInterval = setInterval(async () => {
                         try {
                             let res = await fetch(`/candles/${symbol}`);
-                            if (!res.status === 200) return;
+                            if (!res.ok) return;
                             let data = await res.json();
                             if (!data.candles || data.candles.length === 0) return;
                 
@@ -460,26 +457,20 @@
                                 if (dot) dot.style.opacity = (dot.style.opacity === '1') ? '0.5' : '1';
                 
                                 if (lastLocalCandle && lastLocalCandle[0] === latestServerCandle[0]) {
-                                    // Одоогийн минут үргэлжилж байгаа бол сүүлийн лааг шинэчилнэ
                                     allData[allData.length - 1] = latestServerCandle;
                                 } else if (latestServerCandle[0] > lastLocalCandle[0]) {
-                                    // Шинэ минут гарсан байвал ард нь нэмнэ
                                     allData.push(latestServerCandle);
                                     if (allData.length > 500) allData.shift();
                                 }
                 
                                 draw();
-                                if (typeof window.dispatchChartUpdate === 'function') {
-                                    window.dispatchChartUpdate();
-                                }
                             }
                         } catch (err) {
                             console.error("[Server Sync Error]:", err);
-                            if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-red-500";
-                            if (text) text.innerText = "Error";
                         }
                     }, 2000);
                 }
+                
                 let updateTimer = null;
                 const triggerAutoUpdate = () => {
                     if (updateTimer) clearTimeout(updateTimer);
