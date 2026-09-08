@@ -226,32 +226,40 @@
                     if (!symbol) symbol = "BTCUSDT";
                     
                     try {
-                        // Лаа болон RSI датаг зэрэг татах
-                        const [resCandles, resRsi] = await Promise.all([
+                        // Лаа, RSI болон MACD датаг зэрэг татах (Сервер дээр MACD endpoint байдаг гэж үзлээ, эсвэл нэг API-аас ирдэг бол түүгээр нь авах)
+                        const [resCandles, resRsi, resMacd] = await Promise.all([
                             fetch(`/candles/${symbol}`),
-                            fetch(`/rsi/${symbol}`)
+                            fetch(`/rsi/${symbol}`),
+                            fetch(`/macd/${symbol}`) // Сервер дээрх MACD endpoint-ийн нэр
                         ]);
-
-                        if (!resCandles.ok || !resRsi.ok) throw new Error("Failed to fetch data from server");
-
+                
+                        if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
+                
                         const candleData = await resCandles.json();
                         const rsiData = await resRsi.json();
-
+                        const macdData = await resMacd.json();
+                
                         // Лааны датаг оноох
                         allData = (candleData.candles || []).map(d => [
                             Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                         ]);
-
-                        // Серверээс ирсэн rsi_array-г оноох
+                
                         if (rsiData.rsi_array) {
-                            rsiArrayData = rsiData.rsi_array;
+                            window.rsiArrayData = rsiData.rsi_array;
                         }
-
+                
+                        // Серверээс ирсэн MACD датаг глобал болгож хадгалах
+                        if (macdData.macd_array) {
+                            window.macdArrayData = macdData.macd_array;
+                            window.signalArrayData = macdData.signal_array;
+                            window.histArrayData = macdData.histogram_array;
+                        }
+                
                         draw();
                         dispatchChartUpdate();
                         startServerPolling();
                     } catch (e) {
-                        console.error("Error fetching candles & rsi:", e);
+                        console.error("Error fetching data:", e);
                     }
                 }
 
@@ -607,94 +615,83 @@
         </div>
     </main>
     <script>
-    // --- EMA & MACD TOOTOOLOL ---
-    function calculateEMA(data, period) {
-        let k = 2 / (period + 1);
-        let emaArray = [];
-        let prevEMA = null;
-        for (let i = 0; i < data.length; i++) {
-            let val = data[i];
-            if (prevEMA === null) {
-                prevEMA = val;
-            } else {
-                prevEMA = (val * k) + (prevEMA * (1 - k));
-            }
-            emaArray.push(prevEMA);
-        }
-        return emaArray;
-    }
-    
-    function calculateMACD(closes) {
-        let ema12 = calculateEMA(closes, 12);
-        let ema26 = calculateEMA(closes, 26);
-        let macdLine = [];
-        for (let i = 0; i < closes.length; i++) {
-            macdLine.push(ema12[i] - ema26[i]);
-        }
-        let signalLine = calculateEMA(macdLine, 9);
-        let histogram = [];
-        for (let i = 0; i < closes.length; i++) {
-            histogram.push(macdLine[i] - signalLine[i]);
-        }
-        return { macdLine, signalLine, histogram };
-    }
-        
-    // --- MACD ЗУРАХ ФУНКЦ ---
-    function drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
-        const closes = data.map(d => d[4]);
-        const macdData = calculateMACD(closes);
-    
-        const mainChartHeight = chartHeight * 0.60; // 75 байсныг 60 болгож багасгав
+    // --- MACD ЗУРАХ ФУНКЦ (Серверээс ирсэн датагаар) ---
+    function drawMACD(ctx, data, macdArray, signalArray, histArray, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
+        if (!macdArray || !macdArray.length) return;
+
+        const mainChartHeight = chartHeight * 0.60;
         const macdTop = padding + mainChartHeight + 20;
-        const macdHeight = chartHeight * 0.20 - 10; // 25 байсныг 20 болгов
-    
-        const macdValues = [...macdData.macdLine, ...macdData.signalLine, ...macdData.histogram];
-        let maxMacd = Math.max(...macdValues, 0);
-        let minMacd = Math.min(...macdValues, 0);
+        const macdHeight = chartHeight * 0.20 - 10;
+
+        // Сервер болон лааны массивын уртын зөрүүг тааруулах offset
+        const macdOffset = macdArray.length - allData.length;
+        const startIdx = (allData.length - data.length) + macdOffset;
+
+        // Харагдах хэсэг дэх MACD утгуудыг шүүж min/max олох
+        let visibleMacdValues = [];
+        data.forEach((d, i) => {
+            const idx = startIdx + i;
+            if (idx >= 0 && idx < macdArray.length) {
+                visibleMacdValues.push(macdArray[idx] || 0);
+                visibleMacdValues.push(signalArray[idx] || 0);
+                visibleMacdValues.push(histArray[idx] || 0);
+            }
+        });
+
+        let maxMacd = Math.max(...visibleMacdValues, 0);
+        let minMacd = Math.min(...visibleMacdValues, 0);
         if (maxMacd === minMacd) { maxMacd = 1; minMacd = -1; }
-    
+
         const macdToY = val => macdTop + macdHeight - ((val - minMacd) / (maxMacd - minMacd)) * macdHeight;
-    
+
+        // Тусгаарлах шугам
         ctx.strokeStyle = "#1f2630";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(padding, macdTop);
         ctx.lineTo(padding + chartWidth, macdTop);
         ctx.stroke();
-    
+
+        // Histogram (Баганан график) зурах
         data.forEach((d, i) => {
+            const idx = startIdx + i;
             const x = padding + i * candleWidth;
-            const hVal = macdData.histogram[i];
+            const hVal = (idx >= 0 && idx < histArray.length) ? histArray[idx] : 0;
             const yZero = macdToY(0);
             const yVal = macdToY(hVal);
-    
+
             ctx.fillStyle = hVal >= 0 ? "#0ecb81" : "#f6465d";
             ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
         });
-    
+
+        // MACD шугам зурах
         ctx.strokeStyle = "#2962ff";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         data.forEach((d, i) => {
+            const idx = startIdx + i;
             const x = padding + i * candleWidth + candleWidth / 2;
-            const y = macdToY(macdData.macdLine[i]);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-    
-        ctx.strokeStyle = "#ff9800";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        data.forEach((d, i) => {
-            const x = padding + i * candleWidth + candleWidth / 2;
-            const y = macdToY(macdData.signalLine[i]);
+            const mVal = (idx >= 0 && idx < macdArray.length) ? macdArray[idx] : 0;
+            const y = macdToY(mVal);
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
-        // --- ХУЛГАНЫ БАЙРЛАЛААС ХАМААРЧ MACD УТГИЙГ ӨӨРЧЛӨХ ---
-        let targetIdx = data.length - 1; // Анхдагч нь хамгийн сүүлийн лаа
-        
+        // Signal шугам зурах
+        ctx.strokeStyle = "#ff9800";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        data.forEach((d, i) => {
+            const idx = startIdx + i;
+            const x = padding + i * candleWidth + candleWidth / 2;
+            const sVal = (idx >= 0 && idx < signalArray.length) ? signalArray[idx] : 0;
+            const y = macdToY(sVal);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Хулганы байрлалаар утгыг гаргах
+        let targetIdx = data.length - 1;
         if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
             const mIdx = Math.floor((mouseObj.x - padding) / candleWidth);
             if (mIdx >= 0 && mIdx < data.length) {
@@ -702,10 +699,11 @@
             }
         }
 
-        if (targetIdx >= 0 && targetIdx < data.length) {
-            const mVal = macdData.macdLine[targetIdx].toFixed(4);
-            const sVal = macdData.signalLine[targetIdx].toFixed(4);
-            const hVal = macdData.histogram[targetIdx].toFixed(4);
+        const activeGlobalIdx = startIdx + targetIdx;
+        if (activeGlobalIdx >= 0 && activeGlobalIdx < macdArray.length) {
+            const mVal = Number(macdArray[activeGlobalIdx] || 0).toFixed(4);
+            const sVal = Number(signalArray[activeGlobalIdx] || 0).toFixed(4);
+            const hVal = Number(histArray[activeGlobalIdx] || 0).toFixed(4);
 
             ctx.font = "11px Arial";
             ctx.textBaseline = "top";
