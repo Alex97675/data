@@ -111,6 +111,7 @@ def calculate_rsi_report(klines, symbol="UNKNOWN"):
 
         return {
             "symbol": symbol,
+            "rsi_array": [ ... ],
             "values": {"0": rsi0, "-1": rsi1, "-2": rsi2, "-3": rsi3},
             "last_status": last_status,
             "trend": trend,
