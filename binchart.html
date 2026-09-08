@@ -48,7 +48,6 @@
                 const currentScript = document.currentScript;
                 if (!currentScript) return;
 
-                // 🚨 ЗАСВАР: Label-ийн Accessibility алдааг 'for' ба 'id' холболтоор бүрэн шийдэв
                 const controlHTML = `
                 <div class="controls-container flex flex-wrap items-center gap-4 p-4 bg-brand-dark-blue border border-brand-border rounded-xl shadow-lg">
                     <div class="control-item flex items-center space-x-2">
@@ -91,11 +90,9 @@
 
                 currentScript.insertAdjacentHTML('beforebegin', controlHTML);
 
-                // LIVE Статус индикатор нэмэх (UI-д харагдана)
                 const controls = document.querySelector('.controls-container');
                 controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-2 bg-black/40 px-3 py-1.5 rounded-lg border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
 
-                // Logic from ticker.js to populate symbols
                 async function fetchAndPopulateSymbols() {
                     const marketEl = document.getElementById("market");
                     const coinList = document.getElementById('coin-list');
@@ -103,7 +100,6 @@
                     if (coinList) coinList.innerHTML = '';
 
                     const market = marketEl ? marketEl.value : 'spot';
-                    
                     const url = market === 'futures' 
                         ? 'https://fapi.binance.com/fapi/v1/exchangeInfo' 
                         : 'https://api.binance.com/api/v3/exchangeInfo';
@@ -132,12 +128,10 @@
                     }
                 }
 
-                // Run logic after DOM is ready
                 document.addEventListener('DOMContentLoaded', () => {
                     const marketEl = document.getElementById("market");
                     const intervalEl = document.getElementById("interval");
 
-                    // Удирдлагын логикийг нэгтгэсэн функц
                     window.syncControlsAndFetch = function() {
                         if (!marketEl || !intervalEl) return;
                         
@@ -172,8 +166,7 @@
                 currentScript.insertAdjacentHTML('beforebegin', chartHTML);
             })();
 
-            // Дуудагдахгүй байсан функцийг тодорхойлж алдаанаас сэргийлнэ
-            window.dispatchChartUpdate = function() { /* Шаардлагатай бол энд UI синхрончлол хийж болно */ }
+            window.dispatchChartUpdate = function() {}
 
             document.addEventListener('DOMContentLoaded', () => {
                 const canvas = document.getElementById("chart");
@@ -182,25 +175,22 @@
                 const ctx = canvas.getContext("2d");
                 let socket;
                 
-                // DOM Elements form Controls
                 const marketEl = document.getElementById("market");
                 const intervalEl = document.getElementById("interval");
                 const coinEl = document.getElementById("coin");
 
-                // State
                 let symbol = coinEl && coinEl.value ? coinEl.value.toUpperCase() : "BTCUSDT";
                 let interval = intervalEl ? intervalEl.value : "1m";
                 let allData = [];
                 let visibleCount = 80;
-                let offset = 0; // pan offset
+                let offset = 0;
                 const minVisible = 20;
                 const maxVisible = 330;
                 let mouse = { x:null, y:null };
                 let dragging = false;
                 let lastX = 0;
                 
-                // Price Scale State
-                let priceScale = 1; // Y-тэнхлэгийн масштабын коэффициент
+                let priceScale = 1;
                 let priceOffset = 0;
                 let draggingPrice = false;
                 let lastY = 0;
@@ -232,10 +222,9 @@
                     if (!marketEl || !coinEl) return;
                     if (!symbol) symbol = "BTCUSDT";
                     
-                    let url = `/candles/${symbol}`; // Railway сервер дээрх дата
+                    let url = `/candles/${symbol}`;
                 
                     try {
-                        console.log(`[FetchCandles] Серверээс дата татаж байна: ${url}`);
                         const res = await fetch(url);
                         if (!res.ok) {
                             throw new Error(`HTTP error! status: ${res.status}`);
@@ -251,10 +240,9 @@
                             Number(d[5])
                         ]);
                 
-                        console.log(`[FetchCandles] ${allData.length} лаа амжилттай татагдлаа.`);
                         draw();
                         dispatchChartUpdate();
-                        startServerPolling(); // Binance руу биш серверийн санах ой руу холбогдоно
+                        startServerPolling();
                     } catch (e) {
                         console.error("Error fetching candles:", e);
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -293,7 +281,6 @@
                     }
                     if (maxPrice === minPrice) maxPrice += 1;
 
-                    // Apply Price Scaling (Zoom Y)
                     if (priceScale !== 1) {
                         const mid = (maxPrice + minPrice) / 2;
                         const halfRange = (maxPrice - minPrice) / 2;
@@ -304,7 +291,6 @@
 
                     lastPriceRange = maxPrice - minPrice;
 
-                    // Apply Price Offset (Pan Y)
                     maxPrice += priceOffset;
                     minPrice += priceOffset;
 
@@ -312,7 +298,6 @@
                     const yToPrice = y => maxPrice - ((y - padding) / chartHeight) * (maxPrice - minPrice);
                     const candleWidth = chartWidth / data.length;
 
-                    // Price grid
                     ctx.font = "12px Arial";
                     ctx.strokeStyle = "#1f2630";
                     ctx.fillStyle = "#aaa";
@@ -324,7 +309,6 @@
                         ctx.fillText(formatPrice(price), padding + chartWidth + 5, y + 4);
                     }
                     
-                    // Time grid
                     const numTicks = Math.max(2, Math.floor(chartWidth / 100));
                     const step = Math.ceil(data.length / numTicks);
                     ctx.textAlign = "center";
@@ -349,7 +333,6 @@
                     }
                     ctx.textAlign = "left";
 
-                    // Лаануудыг зурах
                     data.forEach((d, i) => {
                         const open = d[1], high = d[2], low = d[3], close = d[4];
                         const x = padding + i * candleWidth;
@@ -383,7 +366,6 @@
                         ctx.shadowBlur = 0;
                     });
 
-                    // Current price line
                     const lastClose = data[data.length - 1][4];
                     const yLast = priceToY(lastClose);
                     ctx.setLineDash([5, 5]);
@@ -396,7 +378,6 @@
                     ctx.fillStyle = "#f0b90b";
                     ctx.fillText(formatPrice(lastClose), padding + chartWidth + 5, yLast - 4);
 
-                    // Crosshair
                     if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
                         const index = Math.floor((mouse.x - padding) / candleWidth);
                         const candle = data[index];
@@ -453,56 +434,7 @@
 
                     // MACD-г зуруулах
                     drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
-                } // <--- draw() функц яг энд төгсгөл болох ёстой.
-                    
-                    if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
-                        const index = Math.floor((mouse.x - padding) / candleWidth);
-                        if (data[index]) {
-                            activeCandle = data[index]; // Хулгана дээр байгаа лааны утга
-                        }
-                    }
-
-                    if (activeCandle) {
-                        const oVal = formatPrice(activeCandle[1]);
-                        const hVal = formatPrice(activeCandle[2]);
-                        const lVal = formatPrice(activeCandle[3]);
-                        const cVal = formatPrice(activeCandle[4]);
-                        const isBull = activeCandle[4] >= activeCandle[1];
-                        const colorCode = isBull ? "#0ecb81" : "#f6465d";
-
-                        ctx.font = "11px Arial";
-                        ctx.textBaseline = "top";
-                        let startX = padding + 10;
-                        let startY = padding + 5;
-
-                        ctx.fillStyle = "#888";
-                        ctx.fillText(`${symbol}  O:`, startX, startY);
-                        let w1 = ctx.measureText(`${symbol}  O:`).width;
-
-                        ctx.fillStyle = colorCode;
-                        ctx.fillText(oVal, startX + w1, startY);
-                        let w2 = ctx.measureText(oVal + "  H:").width;
-
-                        ctx.fillStyle = "#888";
-                        ctx.fillText("H:", startX + w1, startY); // adjust layout
-                        // Илүү цэвэрхэн байрлуулахын тулд дарааллаар нь бичнэ:
-                        
-                        let curX = startX;
-                        const drawTextLabel = (label, val, valColor) => {
-                            ctx.fillStyle = "#888";
-                            ctx.fillText(label, curX, startY);
-                            curX += ctx.measureText(label).width;
-                            ctx.fillStyle = valColor || "#fff";
-                            ctx.fillText(val + "  ", curX, startY);
-                            curX += ctx.measureText(val + "  ").width;
-                        };
-
-                        curX = startX;
-                        drawTextLabel(symbol + "  O:", oVal, colorCode);
-                        drawTextLabel("H:", hVal, "#fff");
-                        drawTextLabel("L:", lVal, "#fff");
-                        drawTextLabel("C:", cVal, colorCode);
-                    }
+                }
 
                 let liveInterval = null;
 
@@ -574,7 +506,6 @@
                     }, 300);
                 };
 
-                // Эвэнт сонсогчид
                 if (marketEl) marketEl.addEventListener("change", triggerAutoUpdate);
                 if (intervalEl) intervalEl.addEventListener("change", triggerAutoUpdate);
                 if (coinEl) {
@@ -664,7 +595,6 @@
                     draw();
                 }, { passive:false });
 
-                // Initial Load
                 fetchCandles();
             });
             </script>
@@ -704,7 +634,7 @@
         return { macdLine, signalLine, histogram };
     }
     
-    // --- MACD ZURAH FUNKC (Утгуудыг зүүн дээд буланд харуулах хэсэгтэй) ---
+    // --- MACD ZURAH FUNKC ---
     function drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth) {
         const closes = data.map(d => d[4]);
         const macdData = calculateMACD(closes);
@@ -727,7 +657,6 @@
         ctx.lineTo(padding + chartWidth, macdTop);
         ctx.stroke();
     
-        // Histogram (Баганууд)
         data.forEach((d, i) => {
             const x = padding + i * candleWidth;
             const hVal = macdData.histogram[i];
@@ -738,7 +667,6 @@
             ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
         });
     
-        // MACD Line
         ctx.strokeStyle = "#2962ff";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -749,7 +677,6 @@
         });
         ctx.stroke();
     
-        // Signal Line
         ctx.strokeStyle = "#ff9800";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -760,49 +687,9 @@
         });
         ctx.stroke();
 
-        // --- BINANCE ШИГ ЗҮҮН ДЭЭД БУЛАНД УТГУУДЫГ ХАРУУЛАХ ---
-        const lastIdx = data.length - 1;
-        if (lastIdx >= 0) {
-            const mVal = macdData.macdLine[lastIdx].toFixed(4);
-            const sVal = macdData.signalLine[lastIdx].toFixed(4);
-            const hVal = macdData.histogram[lastIdx].toFixed(4);
-
-            ctx.font = "11px Arial";
-            ctx.textBaseline = "top";
-            
-            let startX = padding + 10;
-            let startY = macdTop + 6;
-
-            // Гарчиг болон MACD утга (Цэнхэр)
-            ctx.fillStyle = "#888";
-            ctx.fillText("MACD(12, 26, 9):", startX, startY);
-            let w1 = ctx.measureText("MACD(12, 26, 9): ").width;
-
-            ctx.fillStyle = "#2962ff";
-            ctx.fillText(mVal, startX + w1, startY);
-            let w2 = ctx.measureText(mVal + "  ").width;
-
-            // Signal утга (Улбар шар)
-            ctx.fillStyle = "#888";
-            ctx.fillText("Signal: ", startX + w1 + w2, startY);
-            let w3 = ctx.measureText("Signal: ").width;
-
-            ctx.fillStyle = "#ff9800";
-            ctx.fillText(sVal, startX + w1 + w2 + w3, startY);
-            let w4 = ctx.measureText(sVal + "  ").width;
-
-            // Histogram / Өөрчлөлт (Ногоон эсвэл Улаан)
-            ctx.fillStyle = "#888";
-            ctx.fillText("Hist: ", startX + w1 + w2 + w3 + w4, startY);
-            let w5 = ctx.measureText("Hist: ").width;
-
-            ctx.fillStyle = Number(hVal) >= 0 ? "#0ecb81" : "#f6465d";
-            ctx.fillText(hVal, startX + w1 + w2 + w3 + w4 + w5, startY);
-        }
-        // --- MACD УТГУУДЫГ ХАРУУЛАХ (Хулганы байрлалаас хамаарна) ---
-        let targetIdx = data.length - 1; // Анхдагч нь хамгийн сүүлийн лаа
+        let targetIdx = data.length - 1;
         
-        if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
+        if (mouse && mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
             const mIdx = Math.floor((mouse.x - padding) / candleWidth);
             if (mIdx >= 0 && mIdx < data.length) {
                 targetIdx = mIdx;
