@@ -182,6 +182,9 @@
                 // Энд глобал байдлаар зарлана
                 window.allData = [];
                 window.rsiArrayData = [];
+                window.macdArrayData = [];
+                window.signalArrayData = [];
+                window.histArrayData = [];
         
                 let symbol = coinEl && coinEl.value ? coinEl.value.toUpperCase() : "BTCUSDT";
                 let interval = intervalEl ? intervalEl.value : "1m";
@@ -226,35 +229,33 @@
                     if (!symbol) symbol = "BTCUSDT";
                     
                     try {
-                        // Лаа, RSI болон MACD датаг зэрэг татах (Сервер дээр MACD endpoint байдаг гэж үзлээ, эсвэл нэг API-аас ирдэг бол түүгээр нь авах)
                         const [resCandles, resRsi, resMacd] = await Promise.all([
                             fetch(`/candles/${symbol}`),
                             fetch(`/rsi/${symbol}`),
-                            fetch(`/macd/${symbol}`) // Сервер дээрх MACD endpoint-ийн нэр
+                            fetch(`/macd/${symbol}`) // MACD дата авах API
                         ]);
-                
+            
                         if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
-                
+            
                         const candleData = await resCandles.json();
                         const rsiData = await resRsi.json();
                         const macdData = await resMacd.json();
-                
-                        // Лааны датаг оноох
+            
                         allData = (candleData.candles || []).map(d => [
                             Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                         ]);
-                
+            
                         if (rsiData.rsi_array) {
-                            window.rsiArrayData = rsiData.rsi_array;
+                            rsiArrayData = rsiData.rsi_array;
                         }
-                
-                        // Серверээс ирсэн MACD датаг глобал болгож хадгалах
+            
+                        // Серверээс ирсэн MACD массивуудыг глобал хувьсагчид оноох
                         if (macdData.macd_array) {
                             window.macdArrayData = macdData.macd_array;
                             window.signalArrayData = macdData.signal_array;
                             window.histArrayData = macdData.histogram_array;
                         }
-                
+            
                         draw();
                         dispatchChartUpdate();
                         startServerPolling();
@@ -441,11 +442,11 @@
                         drawTextLabel("L:", lVal, "#fff");
                         drawTextLabel("C:", cVal, colorCode);
                     }
-
-                    // MACD-г зуруулах хэсгийг ингэж өөрчилж хулганаа дамжуулна:
-                    drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouse);
-
-                    // RSI-г зуруулахдаа серверээс авсан rsiArrayData-гаа дамжуулна
+    
+                    // MACD-г зуруулахдаа серверээс ирсэн бүтэн массивуудыг дамжуулна
+                    drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, padding, chartWidth, chartHeight, candleWidth, mouse);
+                
+                    // RSI-г зуруулах
                     drawRSI(ctx, data, rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse);
                 }
 
