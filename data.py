@@ -16,7 +16,6 @@ from ohlc_data import calculate_ohlc_tracker_report
 from rsi_data import calculate_rsi_report
 from ema_data import calculate_ema_report
 from macd_data import calculate_macd_report, _build_initial_macd_state, macd_state
-from binchart import BINCHART_HTML
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
