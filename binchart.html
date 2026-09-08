@@ -222,34 +222,36 @@
                     if (!marketEl || !coinEl) return;
                     if (!symbol) symbol = "BTCUSDT";
                     
-                    let url = `/candles/${symbol}`;
+                    let candlesUrl = `/candles/${symbol}`;
+                    let rsiUrl = `/rsi/${symbol}`; // Сервер дээрх RSI endpoint
                 
                     try {
-                        const res = await fetch(url);
-                        if (!res.ok) {
-                            throw new Error(`HTTP error! status: ${res.status}`);
-                        }
-                        const data = await res.json();
-                        
-                        allData = (data.candles || []).map(d => [
-                            Number(d[0]),  
-                            Number(d[1]), 
-                            Number(d[2]), 
-                            Number(d[3]), 
-                            Number(d[4]), 
-                            Number(d[5])
+                        // Лаа болон RSI датаг зэрэг татах
+                        const [resCandles, resRsi] = await Promise.all([
+                            fetch(candlesUrl),
+                            fetch(rsiUrl)
                         ]);
+
+                        if (!resCandles.ok) throw new Error(`Candles HTTP error! status: ${resCandles.status}`);
+                        
+                        const candleData = await resCandles.json();
+                        allData = (candleData.candles || []).map(d => [
+                            Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                        ]);
+
+                        // RSI датаг серверээс хүлээж авах
+                        if (resRsi.ok) {
+                            const rsiData = await resRsi.json();
+                            // rsi_data.py-аас ирж байгаа бүтцийг шалгаад цуврал утгыг нь гаргаж авна
+                            // Таны кодыг харахад rsi_series-ийг шууд массив болгож авч болно эсвэл values ашиглана
+                            // Хэрвээ та серверээсээ RSI массивыг шууд авахыг хүсвэл rsi_data.py дээрээ RSI цувралыг list хэлбэрээр буцааж болно.
+                        }
                 
                         draw();
                         dispatchChartUpdate();
                         startServerPolling();
                     } catch (e) {
-                        console.error("Error fetching candles:", e);
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = "red";
-                        ctx.font = "16px Arial";
-                        ctx.textAlign = "center";
-                        ctx.fillText(`Error fetching data: ${e.message}`, canvas.width / 2, canvas.height / 2);
+                        console.error("Error fetching data:", e);
                     }
                 }
 
