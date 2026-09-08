@@ -229,10 +229,12 @@
                     if (!symbol) symbol = "BTCUSDT";
                     
                     try {
+                        // Лаа болон бусад индикаторын датаг серверээс татах 
+                        // (Хэрэв сервер дээр бүгд нэг endpoint дээр хамт ирдэг бол түүгээр нь, эсвэл тусдаа бол ингэж авна)
                         const [resCandles, resRsi, resMacd] = await Promise.all([
                             fetch(`/candles/${symbol}`),
                             fetch(`/rsi/${symbol}`),
-                            fetch(`/macd/${symbol}`) // MACD дата авах API
+                            fetch(`/macd/${symbol}`)
                         ]);
             
                         if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
@@ -241,19 +243,23 @@
                         const rsiData = await resRsi.json();
                         const macdData = await resMacd.json();
             
+                        // 1. Лааны датаг оноох
                         allData = (candleData.candles || []).map(d => [
                             Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                         ]);
             
-                        if (rsiData.rsi_array) {
-                            rsiArrayData = rsiData.rsi_array;
+                        // 2. RSI датаг оноох (Серверийн бүтцээс хамаарч rsiData.rsi.rsi_array эсвэл rsiData.rsi_array)
+                        const rsiObj = rsiData.rsi || rsiData;
+                        if (rsiObj.rsi_array) {
+                            window.rsiArrayData = rsiObj.rsi_array;
                         }
             
-                        // Серверээс ирсэн MACD массивуудыг глобал хувьсагчид оноох
-                        if (macdData.macd_array) {
-                            window.macdArrayData = macdData.macd_array;
-                            window.signalArrayData = macdData.signal_array;
-                            window.histArrayData = macdData.histogram_array;
+                        // 3. MACD датаг оноох (Серверийн JSON бүтцэд байгаа macd объектыг зөв зааж өгөх)
+                        const macdObj = macdData.macd || macdData;
+                        if (macdObj.macd_array) {
+                            window.macdArrayData = macdObj.macd_array;
+                            window.signalArrayData = macdObj.signal_array;
+                            window.histArrayData = macdObj.histogram_array;
                         }
             
                         draw();
