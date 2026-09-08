@@ -687,9 +687,10 @@
         });
         ctx.stroke();
 
-        let targetIdx = data.length - 1;
+        // --- MACD УТГУУДЫГ ХАРУУЛАХ ---
+        let targetIdx = data.length - 1; // Анхдагч нь хамгийн сүүлийн лаа
         
-        if (mouse && mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
+        if (typeof mouse !== 'undefined' && mouse && mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth) {
             const mIdx = Math.floor((mouse.x - padding) / candleWidth);
             if (mIdx >= 0 && mIdx < data.length) {
                 targetIdx = mIdx;
