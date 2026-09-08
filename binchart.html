@@ -224,52 +224,6 @@
                     return price.toPrecision(4);
                 }
 
-                async function fetchCandles() {
-                    if (!marketEl || !coinEl) return;
-                    if (!symbol) symbol = "BTCUSDT";
-                    
-                    try {
-                        // Лаа болон бусад индикаторын датаг серверээс татах 
-                        // (Хэрэв сервер дээр бүгд нэг endpoint дээр хамт ирдэг бол түүгээр нь, эсвэл тусдаа бол ингэж авна)
-                        const [resCandles, resRsi, resMacd] = await Promise.all([
-                            fetch(`/candles/${symbol}`),
-                            fetch(`/rsi/${symbol}`),
-                            fetch(`/macd/${symbol}`)
-                        ]);
-            
-                        if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
-            
-                        const candleData = await resCandles.json();
-                        const rsiData = await resRsi.json();
-                        const macdData = await resMacd.json();
-            
-                        // 1. Лааны датаг оноох
-                        allData = (candleData.candles || []).map(d => [
-                            Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
-                        ]);
-            
-                        // 2. RSI датаг оноох (Серверийн бүтцээс хамаарч rsiData.rsi.rsi_array эсвэл rsiData.rsi_array)
-                        const rsiObj = rsiData.rsi || rsiData;
-                        if (rsiObj.rsi_array) {
-                            window.rsiArrayData = rsiObj.rsi_array;
-                        }
-            
-                        // 3. MACD датаг оноох (Серверийн JSON бүтцэд байгаа macd объектыг зөв зааж өгөх)
-                        const macdObj = macdData.macd || macdData;
-                        if (macdObj.macd_array) {
-                            window.macdArrayData = macdObj.macd_array;
-                            window.signalArrayData = macdObj.signal_array;
-                            window.histArrayData = macdObj.histogram_array;
-                        }
-            
-                        draw();
-                        dispatchChartUpdate();
-                        startServerPolling();
-                    } catch (e) {
-                        console.error("Error fetching data:", e);
-                    }
-                }
-
                 function draw() {
                     if (!allData || !allData.length) return;
                     
@@ -458,6 +412,53 @@
 
                 let liveInterval = null;
 
+                async function fetchCandles() {
+                    if (!marketEl || !coinEl) return;
+                    if (!symbol) symbol = "BTCUSDT";
+                    
+                    try {
+                        // Лаа, RSI болон MACD датаг зэрэг татах
+                        const [resCandles, resRsi, resMacd] = await Promise.all([
+                            fetch(`/candles/${symbol}`),
+                            fetch(`/rsi/${symbol}`),
+                            fetch(`/macd/${symbol}`)
+                        ]);
+            
+                        if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
+            
+                        const candleData = await resCandles.json();
+                        const rsiData = await resRsi.json();
+                        const macdData = await resMacd.json();
+            
+                        // Лааны датаг оноох
+                        allData = (candleData.candles || []).map(d => [
+                            Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                        ]);
+            
+                        // RSI датаг оноох
+                        const rsiObj = rsiData.rsi || rsiData;
+                        if (rsiObj.rsi_array) {
+                            window.rsiArrayData = rsiObj.rsi_array;
+                        }
+            
+                        // MACD датаг оноох
+                        const macdObj = macdData.macd || macdData;
+                        if (macdObj.macd_array) {
+                            window.macdArrayData = macdObj.macd_array;
+                            window.signalArrayData = macdObj.signal_array;
+                            window.histArrayData = macdObj.histogram_array;
+                        }
+            
+                        draw();
+                        dispatchChartUpdate();
+                        startServerPolling();
+                    } catch (e) {
+                        console.error("Error fetching data:", e);
+                    }
+                }
+            
+                let liveInterval = null;
+            
                 function startServerPolling() {
                     if (liveInterval) clearInterval(liveInterval);
                 
@@ -473,11 +474,22 @@
                         text.className = "text-[9px] font-black uppercase text-green-500";
                     }
                 
+                    // Серверээс секунд/секунд тутамд лаа болон индикаторуудыг хамт татах polling
                     liveInterval = setInterval(async () => {
                         try {
-                            let res = await fetch(`/candles/${symbol}`);
-                            if (!res.ok) return;
-                            let data = await res.json();
+                            // Лаа, RSI, MACD-г бүгдийг нь хамт шинэчилж татна
+                            const [resCandles, resRsi, resMacd] = await Promise.all([
+                                fetch(`/candles/${symbol}`),
+                                fetch(`/rsi/${symbol}`),
+                                fetch(`/macd/${symbol}`)
+                            ]);
+            
+                            if (!resCandles.ok || !resRsi.ok || !resMacd.ok) return;
+            
+                            let data = await resCandles.json();
+                            let rsiData = await resRsi.json();
+                            let macdData = await resMacd.json();
+            
                             if (!data.candles || data.candles.length === 0) return;
                 
                             let serverKlines = data.candles.map(d => [
@@ -495,6 +507,19 @@
                                 } else if (latestServerCandle[0] > lastLocalCandle[0]) {
                                     allData.push(latestServerCandle);
                                     if (allData.length > 500) allData.shift();
+                                }
+            
+                                // RSI болон MACD массивуудыг мөн давхар шинэчилж онооно
+                                const rsiObj = rsiData.rsi || rsiData;
+                                if (rsiObj.rsi_array) {
+                                    window.rsiArrayData = rsiObj.rsi_array;
+                                }
+            
+                                const macdObj = macdData.macd || macdData;
+                                if (macdObj.macd_array) {
+                                    window.macdArrayData = macdObj.macd_array;
+                                    window.signalArrayData = macdObj.signal_array;
+                                    window.histArrayData = macdObj.histogram_array;
                                 }
                 
                                 draw();
