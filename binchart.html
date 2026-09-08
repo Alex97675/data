@@ -221,37 +221,33 @@
                 async function fetchCandles() {
                     if (!marketEl || !coinEl) return;
                     if (!symbol) symbol = "BTCUSDT";
-                    
-                    let candlesUrl = `/candles/${symbol}`;
-                    let rsiUrl = `/rsi/${symbol}`; // Сервер дээрх RSI endpoint
                 
                     try {
-                        // Лаа болон RSI датаг зэрэг татах
                         const [resCandles, resRsi] = await Promise.all([
-                            fetch(candlesUrl),
-                            fetch(rsiUrl)
+                            fetch(`/candles/${symbol}`),
+                            fetch(`/rsi/${symbol}`)
                         ]);
 
-                        if (!resCandles.ok) throw new Error(`Candles HTTP error! status: ${resCandles.status}`);
-                        
+                        if (!resCandles.ok || !resRsi.ok) throw new Error("Failed to fetch data from server");
+
                         const candleData = await resCandles.json();
+                        const rsiData = await resRsi.json();
+
+                        // Лааны дата
                         allData = (candleData.candles || []).map(d => [
                             Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                         ]);
 
-                        // RSI датаг серверээс хүлээж авах
-                        if (resRsi.ok) {
-                            const rsiData = await resRsi.json();
-                            // rsi_data.py-аас ирж байгаа бүтцийг шалгаад цуврал утгыг нь гаргаж авна
-                            // Таны кодыг харахад rsi_series-ийг шууд массив болгож авч болно эсвэл values ашиглана
-                            // Хэрвээ та серверээсээ RSI массивыг шууд авахыг хүсвэл rsi_data.py дээрээ RSI цувралыг list хэлбэрээр буцааж болно.
+                        // rsi_data.py-аас ирсэн бодит rsi_array-г шууд оноох
+                        if (rsiData.rsi_array) {
+                            rsiArrayData = rsiData.rsi_array;
                         }
-                
+
                         draw();
                         dispatchChartUpdate();
                         startServerPolling();
                     } catch (e) {
-                        console.error("Error fetching data:", e);
+                        console.error("Error fetching candles & rsi:", e);
                     }
                 }
 
@@ -765,10 +761,8 @@
         }
     }
 
-    // --- RSI ЗУРАХ ФУНКЦ ---
-    function drawRSI(ctx, data, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
-        const closes = data.map(d => d[4]);
-        const rsiValues = calculateRSI(closes, 7);
+    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
+        if (!rsiArray || !rsiArray.length) return;
 
         const mainChartHeight = chartHeight * 0.60;
         const macdHeight = chartHeight * 0.20;
@@ -777,7 +771,7 @@
 
         const rsiToY = val => rsiTop + rsiHeight - (val / 100) * rsiHeight;
 
-        // Тусгаарлах шугам болон 30/70 түвшний шугамууд
+        // Тусгаарлах шугам
         ctx.strokeStyle = "#1f2630";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -785,7 +779,7 @@
         ctx.lineTo(padding + chartWidth, rsiTop);
         ctx.stroke();
 
-        // 30 болон 70 босго шугамууд (Цэгтэй)
+        // 30 болон 70 түвшний шугамууд
         ctx.setLineDash([3, 3]);
         ctx.strokeStyle = "#2a2e39";
         
@@ -796,20 +790,24 @@
         ctx.beginPath(); ctx.moveTo(padding, y30); ctx.lineTo(padding + chartWidth, y30); ctx.stroke();
         ctx.setLineDash([]);
 
-        // RSI Шугам зурах
-        ctx.strokeStyle = "#e91e63"; // Ягаан/Ягаанвтар өнгө (TradingView RSI стилээр)
+        // RSI Шугам зурах (Серверээс ирсэн массивыг index-ээр нь холбоно)
+        ctx.strokeStyle = "#e91e63";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
+        
+        const startIdx = allData.length - data.length; // Visible хэсгийн индекс тооцох
         data.forEach((d, i) => {
+            const globalIdx = startIdx + i;
             const x = padding + i * candleWidth + candleWidth / 2;
-            const y = rsiToY(rsiValues[i]);
+            const rVal = rsiArray[globalIdx] !== undefined ? rsiArray[globalIdx] : 50;
+            const y = rsiToY(rVal);
+            
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
 
-        // --- ХУЛГАНЫ БАЙРЛАЛААС ХАМААРЧ RSI УТГИЙГ ӨӨРЧЛӨХ ---
+        // Хулганы заагч дээр утгыг гаргах
         let targetIdx = data.length - 1;
-        
         if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
             const mIdx = Math.floor((mouseObj.x - padding) / candleWidth);
             if (mIdx >= 0 && mIdx < data.length) {
@@ -817,9 +815,9 @@
             }
         }
 
-        if (targetIdx >= 0 && targetIdx < data.length) {
-            const rVal = rsiValues[targetIdx].toFixed(2);
-
+        const activeGlobalIdx = startIdx + targetIdx;
+        if (rsiArray[activeGlobalIdx] !== undefined) {
+            const rVal = Number(rsiArray[activeGlobalIdx]).toFixed(2);
             ctx.font = "11px Arial";
             ctx.textBaseline = "top";
             
