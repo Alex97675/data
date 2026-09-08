@@ -420,7 +420,9 @@
                             ctx.fillStyle = "#fff"; ctx.fillText(formatPrice(price), padding + chartWidth + 5, mouse.y + 4);
                         }
                     }
-                }
+                    // MACD-г дуудаж зуруулах (Хамгийн бага код!)
+                    drawMACD(ctx, data, padding, chartWidth, chartHeight, candleWidth);
+                                }
 
                 let liveInterval = null;
 
