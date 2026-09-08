@@ -1,4 +1,159 @@
-<script>
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controls Template - MGL Signal</title>
+
+    <meta name="description" content="MGL Signal - Live Trading Charts and Controls">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" type="image/png" href="/static/new/images/logogo1.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 'dark': '#05070a', 'dark-blue': '#0f1217', 'gold': '#c5a059', 'border': '#1f242d' }
+                    },
+                    fontFamily: { 'inter': ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://api.binance.com https://fapi.binance.com wss://stream.binance.com wss://fstream.binance.com https://bsdkbxyjwjljximdxdst.supabase.co;">
+</head>
+<body class="bg-brand-dark text-white font-inter flex flex-col min-h-screen">
+
+    <main class="flex-grow pt-32 pb-12 px-4 md:px-6">
+        <div class="max-w-7xl mx-auto flex flex-col gap-6">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <a href="/main_live_tools.html" class="inline-flex items-center text-gray-500 hover:text-brand-gold transition text-[10px] font-black uppercase tracking-widest">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Live Tools
+                </a>
+            </div>
+
+            <script>
+            (function() {
+                const currentScript = document.currentScript;
+                if (!currentScript) return;
+
+                const controlHTML = `
+                <div class="controls-container flex flex-wrap items-center gap-4 p-4 bg-brand-dark-blue border border-brand-border rounded-xl shadow-lg">
+                    <div class="control-item flex items-center space-x-2">
+                        <label for="market" class="text-gray-500 font-bold uppercase text-[10px]">Market:</label>
+                        <select id="market" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                            <option value="futures" selected>Futures</option>
+                            <option value="spot">Spot</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item flex items-center space-x-2">
+                        <label for="interval" class="text-gray-500 font-bold uppercase text-[10px]">Time:</label>
+                        <select id="interval" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                            <option value="1s">1s</option>
+                            <option value="1m" selected>1m</option>
+                            <option value="3m">3m</option>
+                            <option value="5m">5m</option>
+                            <option value="15m">15m</option>
+                            <option value="30m">30m</option>
+                            <option value="1h">1h</option>
+                            <option value="2h">2h</option>
+                            <option value="4h">4h</option>
+                            <option value="6h">6h</option>
+                            <option value="8h">8h</option>
+                            <option value="12h">12h</option>
+                            <option value="1d">1d</option>
+                            <option value="3d">3d</option>
+                            <option value="1w">1w</option>
+                            <option value="1M">1M</option>
+                        </select>
+                    </div>
+
+                    <div id="pair-container" class="control-item flex items-center space-x-2">
+                        <label for="coin" class="text-gray-500 font-bold uppercase text-[10px]">Pair:</label>
+                        <input type="text" id="coin" value="BTCUSDT" list="coin-list" placeholder="Search..." class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 w-32 uppercase font-bold text-xs shadow-inner transition-colors" />
+                        <datalist id="coin-list"></datalist>
+                    </div>
+                </div>
+                `;
+
+                currentScript.insertAdjacentHTML('beforebegin', controlHTML);
+
+                const controls = document.querySelector('.controls-container');
+                controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-2 bg-black/40 px-3 py-1.5 rounded-lg border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
+
+                async function fetchAndPopulateSymbols() {
+                    const marketEl = document.getElementById("market");
+                    const coinList = document.getElementById('coin-list');
+                    
+                    if (coinList) coinList.innerHTML = '';
+
+                    const market = marketEl ? marketEl.value : 'spot';
+                    const url = market === 'futures' 
+                        ? 'https://fapi.binance.com/fapi/v1/exchangeInfo' 
+                        : 'https://api.binance.com/api/v3/exchangeInfo';
+                    
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        if (!document.getElementById('coin-list')) return;
+
+                        const symbols = data.symbols || [];
+                        let usdtSymbols = [];
+
+                        if (market === 'futures') {
+                            usdtSymbols = symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING' && s.contractType === 'PERPETUAL').map(s => s.symbol);
+                        } else {
+                            usdtSymbols = symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING' && !s.symbol.endsWith('UP') && !s.symbol.endsWith('DOWN') && !s.symbol.endsWith('BEAR') && !s.symbol.endsWith('BULL')).map(s => s.symbol);
+                        }
+
+                        usdtSymbols.sort().forEach(symbol => {
+                            const option = document.createElement('option');
+                            option.value = symbol;
+                            coinList.appendChild(option);
+                        });
+                    } catch (error) {
+                        console.error("Failed to fetch symbol list:", error);
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const marketEl = document.getElementById("market");
+                    const intervalEl = document.getElementById("interval");
+
+                    window.syncControlsAndFetch = function() {
+                        if (!marketEl || !intervalEl) return;
+                        
+                        const isFutures = marketEl.value === 'futures';
+                        const option1s = intervalEl.querySelector('option[value="1s"]');
+
+                        if (isFutures) {
+                            if (option1s) option1s.style.display = 'none';
+                            if (intervalEl.value === '1s') intervalEl.value = '1m';
+                        } else {
+                            if (option1s) option1s.style.display = 'block';
+                        }
+
+                        fetchAndPopulateSymbols();
+                    }
+
+                    syncControlsAndFetch();
+                });
+            })();
+            </script>
+
+            <script>
     (function() {
         const currentScript = document.currentScript;
         if (!currentScript) return;
@@ -652,3 +807,5 @@
         }
     }
     </script>
+</body>
+</html>
