@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controls Template - MGL Signal</title>
+
+    <meta name="description" content="MGL Signal - Live Trading Charts and Controls">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="icon" type="image/png" href="/static/new/images/logogo1.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 'dark': '#05070a', 'dark-blue': '#0f1217', 'gold': '#c5a059', 'border': '#1f242d' }
+                    },
+                    fontFamily: { 'inter': ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://api.binance.com https://fapi.binance.com wss://stream.binance.com wss://fstream.binance.com https://bsdkbxyjwjljximdxdst.supabase.co;">
+</head>
+<body class="bg-brand-dark text-white font-inter flex flex-col min-h-screen">
+
+    <main class="flex-grow pt-32 pb-12 px-4 md:px-6">
+        <div class="max-w-7xl mx-auto flex flex-col gap-6">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <a href="/main_live_tools.html" class="inline-flex items-center text-gray-500 hover:text-brand-gold transition text-[10px] font-black uppercase tracking-widest">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Live Tools
+                </a>
+            </div>
+
+            <script>
+            (function() {
+                const currentScript = document.currentScript;
+                if (!currentScript) return;
+
+                const controlHTML = `
+                <div class="controls-container flex flex-wrap items-center gap-4 p-4 bg-brand-dark-blue border border-brand-border rounded-xl shadow-lg">
+                    <div class="control-item flex items-center space-x-2">
+                        <label for="market" class="text-gray-500 font-bold uppercase text-[10px]">Market:</label>
+                        <select id="market" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                            <option value="futures" selected>Futures</option>
+                            <option value="spot">Spot</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item flex items-center space-x-2">
+                        <label for="interval" class="text-gray-500 font-bold uppercase text-[10px]">Time:</label>
+                        <select id="interval" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                            <option value="1s">1s</option>
+                            <option value="1m" selected>1m</option>
+                            <option value="3m">3m</option>
+                            <option value="5m">5m</option>
+                            <option value="15m">15m</option>
+                            <option value="30m">30m</option>
+                            <option value="1h">1h</option>
+                            <option value="2h">2h</option>
+                            <option value="4h">4h</option>
+                            <option value="6h">6h</option>
+                            <option value="8h">8h</option>
+                            <option value="12h">12h</option>
+                            <option value="1d">1d</option>
+                            <option value="3d">3d</option>
+                            <option value="1w">1w</option>
+                            <option value="1M">1M</option>
+                        </select>
+                    </div>
+
+                    <div id="pair-container" class="control-item flex items-center space-x-2">
+                        <label for="coin" class="text-gray-500 font-bold uppercase text-[10px]">Pair:</label>
+                        <input type="text" id="coin" value="BTCUSDT" list="coin-list" placeholder="Search..." class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 w-32 uppercase font-bold text-xs shadow-inner transition-colors" />
+                        <datalist id="coin-list"></datalist>
+                    </div>
+                </div>
+                `;
+
+                currentScript.insertAdjacentHTML('beforebegin', controlHTML);
+
+                const controls = document.querySelector('.controls-container');
+                controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-2 bg-black/40 px-3 py-1.5 rounded-lg border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
+
+                async function fetchAndPopulateSymbols() {
+                    const marketEl = document.getElementById("market");
+                    const coinList = document.getElementById('coin-list');
+                    
+                    if (coinList) coinList.innerHTML = '';
+
+                    const market = marketEl ? marketEl.value : 'spot';
+                    const url = market === 'futures' 
+                        ? 'https://fapi.binance.com/fapi/v1/exchangeInfo' 
+                        : 'https://api.binance.com/api/v3/exchangeInfo';
+                    
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        if (!document.getElementById('coin-list')) return;
+
+                        const symbols = data.symbols || [];
+                        let usdtSymbols = [];
+
+                        if (market === 'futures') {
+                            usdtSymbols = symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING' && s.contractType === 'PERPETUAL').map(s => s.symbol);
+                        } else {
+                            usdtSymbols = symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING' && !s.symbol.endsWith('UP') && !s.symbol.endsWith('DOWN') && !s.symbol.endsWith('BEAR') && !s.symbol.endsWith('BULL')).map(s => s.symbol);
+                        }
+
+                        usdtSymbols.sort().forEach(symbol => {
+                            const option = document.createElement('option');
+                            option.value = symbol;
+                            coinList.appendChild(option);
+                        });
+                    } catch (error) {
+                        console.error("Failed to fetch symbol list:", error);
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const marketEl = document.getElementById("market");
+                    const intervalEl = document.getElementById("interval");
+
+                    window.syncControlsAndFetch = function() {
+                        if (!marketEl || !intervalEl) return;
+                        
+                        const isFutures = marketEl.value === 'futures';
+                        const option1s = intervalEl.querySelector('option[value="1s"]');
+
+                        if (isFutures) {
+                            if (option1s) option1s.style.display = 'none';
+                            if (intervalEl.value === '1s') intervalEl.value = '1m';
+                        } else {
+                            if (option1s) option1s.style.display = 'block';
+                        }
+
+                        fetchAndPopulateSymbols();
+                    }
+
+                    syncControlsAndFetch();
+                });
+            })();
+            </script>
+
+            <script>
+    (function() {
+        const currentScript = document.currentScript;
+        if (!currentScript) return;
+
+        const chartHTML = `
+        <div id="chart-wrapper" class="relative w-full h-[600px] bg-[#05070a] border-y border-brand-border overflow-hidden">
+            <canvas id="chart" class="block w-full h-full cursor-crosshair"></canvas>
+        </div>
+        `;
+        currentScript.insertAdjacentHTML('beforebegin', chartHTML);
+    })();
+
+    window.dispatchChartUpdate = function() {}
+
+    let liveInterval = null;
+
+    // Индикаторын төлөвүүд ('normal' | 'max' | 'min')
+    window.macdMode = 'normal';
+    window.rsiMode = 'normal';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById("chart");
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext("2d");
+        let socket;
+        
+        const marketEl = document.getElementById("market");
+        const intervalEl = document.getElementById("interval");
+        const coinEl = document.getElementById("coin");
+
+        window.allData = [];
+        window.rsiArrayData = [];
+        window.macdArrayData = [];
+        window.signalArrayData = [];
+        window.histArrayData = [];
+
+        let symbol = coinEl && coinEl.value ? coinEl.value.toUpperCase() : "BTCUSDT";
+        let interval = intervalEl ? intervalEl.value : "1m";
+        let visibleCount = 80;
+        let offset = 0;
+        const minVisible = 20;
+        const maxVisible = 330;
+        let mouse = { x:null, y:null };
+        let dragging = false;
+        let lastX = 0;
+        
+        let priceScale = 1;
+        let priceOffset = 0;
+        let draggingPrice = false;
+        let lastY = 0;
+        let lastPriceRange = 0;
+        let lastChartHeight = 0;
+
+        function resize() {
+            if (canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+            } else {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            draw();
+        }
+        
+        window.addEventListener("resize", resize);
+        setTimeout(resize, 100);
+
+        function formatPrice(price) {
+            if (price >= 100) return price.toFixed(2);
+            if (price >= 1) return price.toFixed(4);
+            if (price >= 0.001) return price.toFixed(6);
+            return price.toPrecision(4);
+        }
+
+        function draw() {
+            if (!window.allData || !window.allData.length) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const padding = 40;
+            const priceScaleWidth = 80;
+            const timeScaleHeight = 30;
+            const chartHeight = canvas.height - padding * 2 - timeScaleHeight;
+            lastChartHeight = chartHeight;
+            const chartWidth = canvas.width - padding * 2 - priceScaleWidth;
+
+            const end = window.allData.length - offset;
+            const start = Math.max(0, end - visibleCount);
+            const data = window.allData.slice(start, end);
+            if (!data.length) return;
+
+            const candleWidth = chartWidth / data.length;
+
+            const prices = data.flatMap(d => [d[2], d[3]]);
+            let maxPrice = Math.max(...prices);
+            let minPrice = Math.min(...prices);
+
+            if (maxPrice === minPrice) {
+                const pricePadding = maxPrice > 1 ? maxPrice * 0.001 : 0.001;
+                maxPrice += pricePadding;
+                minPrice -= pricePadding;
+            }
+
+            const priceRange = maxPrice - minPrice;
+            const paddingBuffer = priceRange * 0.05; 
+            maxPrice += paddingBuffer;
+            minPrice -= paddingBuffer;
+
+            if (priceScale !== 1) {
+                const mid = (maxPrice + minPrice) / 2;
+                const halfRange = (maxPrice - minPrice) / 2;
+                const scaledHalf = halfRange * priceScale;
+                maxPrice = mid + scaledHalf;
+                minPrice = mid - scaledHalf;
+            }
+
+            lastPriceRange = maxPrice - minPrice;
+
+            maxPrice += priceOffset;
+            minPrice += priceOffset;
+
+            // Динамик өндрийн хуваарилалт (Toggle горимоор өөрчлөгдөнө)
+            let mainRatio = 0.60;
+            let macdRatio = 0.20;
+            let rsiRatio = 0.20;
+
+            if (window.macdMode === 'max') {
+                mainRatio = 0.20; macdRatio = 0.60; rsiRatio = 0.20;
+            } else if (window.macdMode === 'min') {
+                mainRatio = 0.70; macdRatio = 0.05; rsiRatio = 0.25;
+            }
+
+            if (window.rsiMode === 'max') {
+                mainRatio = 0.20; macdRatio = 0.20; rsiRatio = 0.60;
+            } else if (window.rsiMode === 'min') {
+                mainRatio = 0.70; macdRatio = 0.25; rsiRatio = 0.05;
+            }
+
+            const mainChartHeight = chartHeight * mainRatio; 
+            const priceToY = p => padding + (maxPrice - p) / (maxPrice - minPrice) * mainChartHeight;
+            const yToPrice = y => maxPrice - ((y - padding) / mainChartHeight) * (maxPrice - minPrice);
+
+            ctx.font = "12px Arial";
+            ctx.strokeStyle = "#1f2630";
+            ctx.fillStyle = "#aaa";
+
+            for (let i = 0; i <= 6; i++) {
+                const price = minPrice + (i / 6) * (maxPrice - minPrice);
+                const y = priceToY(price);
+                ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(padding + chartWidth, y); ctx.stroke();
+                ctx.fillText(formatPrice(price), padding + chartWidth + 5, y + 4);
+            }
+            
+            const numTicks = Math.max(2, Math.floor(chartWidth / 100));
+            const step = Math.ceil(data.length / numTicks);
+            ctx.textAlign = "center";
+
+            for (let i = 0; i < data.length; i += step) {
+                const x = padding + i * candleWidth + candleWidth / 2;
+                const ts = data[i][0];
+                const date = new Date(ts);
+                
+                let label;
+                if (interval.endsWith('d') || interval.endsWith('w') || interval.endsWith('M')) {
+                    label = date.toLocaleDateString(undefined, { year: 'numeric', month: 'numeric', day: 'numeric' });
+                } else {
+                    label = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+                }
+
+                ctx.strokeStyle = "#1f2630";
+                ctx.beginPath(); ctx.moveTo(x, padding); ctx.lineTo(x, padding + mainChartHeight); ctx.stroke();
+                
+                ctx.fillStyle = "#aaa";
+                ctx.fillText(label, x, padding + chartHeight + 20);
+            }
+            ctx.textAlign = "left";
+
+            data.forEach((d, i) => {
+                const open = d[1], high = d[2], low = d[3], close = d[4];
+                const x = padding + i * candleWidth;
+                const yO = priceToY(open);
+                const yC = priceToY(close);
+                const yH = priceToY(high);
+                const yL = priceToY(low);
+                const bull = close >= open;
+
+                const grd = ctx.createLinearGradient(x, yH, x, yL);
+                if (bull) {
+                    grd.addColorStop(0, "#3ee69b");
+                    grd.addColorStop(1, "#0ecb81");
+                } else {
+                    grd.addColorStop(0, "#ffffff");
+                    grd.addColorStop(1, "#ffffff");
+                }
+
+                ctx.fillStyle = grd;
+                ctx.strokeStyle = bull ? "#0ecb81" : "#ffffff";
+                
+                ctx.shadowColor = bull ? "#0ecb81" : "#ffffff";
+                ctx.shadowBlur = 1;
+                
+                ctx.beginPath(); 
+                ctx.moveTo(x + candleWidth / 2, yH); 
+                ctx.lineTo(x + candleWidth / 2, yL); 
+                ctx.stroke();
+                
+                ctx.fillRect(x + candleWidth * 0.2, Math.min(yO, yC), candleWidth * 0.6, Math.max(1, Math.abs(yO - yC)));
+                ctx.shadowBlur = 0;
+            });
+
+            const lastClose = data[data.length - 1][4];
+            const yLast = priceToY(lastClose);
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = "#f0b90b";
+            ctx.beginPath();
+            ctx.moveTo(padding, yLast);
+            ctx.lineTo(padding + chartWidth, yLast);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = "#f0b90b";
+            ctx.fillText(formatPrice(lastClose), padding + chartWidth + 5, yLast - 4);
+
+            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + mainChartHeight) {
+                const index = Math.floor((mouse.x - padding) / candleWidth);
+                const candle = data[index];
+                if (candle) {
+                    const candleX = padding + index * candleWidth + candleWidth / 2;
+                    ctx.strokeStyle = "#888";
+                    ctx.beginPath(); ctx.moveTo(candleX, padding); ctx.lineTo(candleX, padding + mainChartHeight); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(padding, mouse.y); ctx.lineTo(padding + chartWidth, mouse.y); ctx.stroke();
+
+                    const price = yToPrice(mouse.y);
+                    ctx.fillStyle = "#111"; ctx.fillRect(padding + chartWidth, mouse.y - 10, priceScaleWidth, 20);
+                    ctx.fillStyle = "#fff"; ctx.fillText(formatPrice(price), padding + chartWidth + 5, mouse.y + 4);
+                }
+            }
+
+            let activeCandle = data[data.length - 1]; 
+            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + mainChartHeight) {
+                const index = Math.floor((mouse.x - padding) / candleWidth);
+                if (data[index]) {
+                    activeCandle = data[index]; 
+                }
+            }
+
+            if (activeCandle) {
+                const oVal = formatPrice(activeCandle[1]);
+                const hVal = formatPrice(activeCandle[2]);
+                const lVal = formatPrice(activeCandle[3]);
+                const cVal = formatPrice(activeCandle[4]);
+                const isBull = activeCandle[4] >= activeCandle[1];
+                const colorCode = isBull ? "#0ecb81" : "#f6465d";
+
+                ctx.font = "11px Arial";
+                ctx.textBaseline = "top";
+                let startX = padding + 10;
+                let startY = padding + 5;
+
+                let curX = startX;
+                const drawTextLabel = (label, val, valColor) => {
+                    ctx.fillStyle = "#888";
+                    ctx.fillText(label, curX, startY);
+                    curX += ctx.measureText(label).width;
+                    ctx.fillStyle = valColor || "#fff";
+                    ctx.fillText(val + "  ", curX, startY);
+                    curX += ctx.measureText(val + "  ").width;
+                };
+
+                drawTextLabel(symbol + "  O:", oVal, colorCode);
+                drawTextLabel("H:", hVal, "#fff");
+                drawTextLabel("L:", lVal, "#fff");
+                drawTextLabel("C:", cVal, colorCode);
+            }
+
+            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio);
+            drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, rsiRatio);
+        }
+
+        async function fetchCandles() {
+            if (!marketEl || !coinEl) return;
+            if (!symbol) symbol = "BTCUSDT";
+            
+            try {
+                const [resCandles, resRsi, resMacd] = await Promise.all([
+                    fetch(`/candles/${symbol}`),
+                    fetch(`/rsi/${symbol}`),
+                    fetch(`/macd/${symbol}`)
+                ]);
+
+                if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
+
+                const candleData = await resCandles.json();
+                const rsiData = await resRsi.json();
+                const macdData = await resMacd.json();
+
+                window.allData = (candleData.candles || []).map(d => [
+                    Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                ]);
+
+                const rsiObj = rsiData.rsi || rsiData;
+                if (rsiObj.rsi_array) {
+                    window.rsiArrayData = rsiObj.rsi_array;
+                }
+
+                const macdObj = macdData.macd || macdData;
+                if (macdObj.macd_array) {
+                    window.macdArrayData = macdObj.macd_array;
+                    window.signalArrayData = macdObj.signal_array;
+                    window.histArrayData = macdObj.histogram_array;
+                }
+
+                draw();
+                dispatchChartUpdate();
+                startServerPolling();
+            } catch (e) {
+                console.error("Error fetching data:", e);
+            }
+        }
+
+        function startServerPolling() {
+            if (liveInterval) clearInterval(liveInterval);
+        
+            let currentCoin = coinEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '') || "BTCUSDT";
+            symbol = currentCoin;
+        
+            const dot = document.getElementById('ws-dot');
+            const text = document.getElementById('ws-text');
+        
+            if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse";
+            if (text) {
+                text.innerText = "SERVER LIVE";
+                text.className = "text-[9px] font-black uppercase text-green-500";
+            }
+        
+            liveInterval = setInterval(async () => {
+                try {
+                    const [resCandles, resRsi, resMacd] = await Promise.all([
+                        fetch(`/candles/${symbol}`),
+                        fetch(`/rsi/${symbol}`),
+                        fetch(`/macd/${symbol}`)
+                    ]);
+
+                    if (!resCandles.ok || !resRsi.ok || !resMacd.ok) return;
+
+                    let data = await resCandles.json();
+                    let rsiData = await resRsi.json();
+                    let macdData = await resMacd.json();
+
+                    if (!data.candles || data.candles.length === 0) return;
+        
+                    let serverKlines = data.candles.map(d => [
+                        Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
+                    ]);
+        
+                    if (serverKlines.length > 0) {
+                        let latestServerCandle = serverKlines[serverKlines.length - 1];
+                        let lastLocalCandle = window.allData[window.allData.length - 1];
+        
+                        if (dot) dot.style.opacity = (dot.style.opacity === '1') ? '0.5' : '1';
+        
+                        if (lastLocalCandle && lastLocalCandle[0] === latestServerCandle[0]) {
+                            window.allData[window.allData.length - 1] = latestServerCandle;
+                        } else if (latestServerCandle[0] > lastLocalCandle[0]) {
+                            window.allData.push(latestServerCandle);
+                            if (window.allData.length > 500) window.allData.shift();
+                        }
+
+                        const rsiObj = rsiData.rsi || rsiData;
+                        if (rsiObj.rsi_array) {
+                            window.rsiArrayData = rsiObj.rsi_array;
+                        }
+
+                        const macdObj = macdData.macd || macdData;
+                        if (macdObj.macd_array) {
+                            window.macdArrayData = macdObj.macd_array;
+                            window.signalArrayData = macdObj.signal_array;
+                            window.histArrayData = macdObj.histogram_array;
+                        }
+        
+                        draw();
+                    }
+                } catch (err) {
+                    console.error("[Server Sync Error]:", err);
+                }
+            }, 2000);
+        }
+        
+        let updateTimer = null;
+        const triggerAutoUpdate = () => {
+            if (updateTimer) clearTimeout(updateTimer);
+            updateTimer = setTimeout(() => {
+                if (!coinEl || !intervalEl || !marketEl) return;
+
+                if (typeof window.syncControlsAndFetch === 'function') {
+                    window.syncControlsAndFetch();
+                }
+
+                interval = intervalEl.value;
+                
+                let cleanSymbol = coinEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (!cleanSymbol) cleanSymbol = "BTCUSDT";
+                symbol = cleanSymbol;
+
+                if (socket) { socket.onclose = null; socket.close(); }
+                fetchCandles();
+            }, 300);
+        };
+
+        if (marketEl) marketEl.addEventListener("change", triggerAutoUpdate);
+        if (intervalEl) intervalEl.addEventListener("change", triggerAutoUpdate);
+        if (coinEl) {
+            coinEl.addEventListener("change", triggerAutoUpdate);
+            coinEl.addEventListener("keydown", (e) => { if (e.key === "Enter") triggerAutoUpdate(); });
+        }
+
+        // Товчлуур дарах клик үйл явдлуудыг барих хэсэг
+        canvas.addEventListener("click", e => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // MACD товчлуурын координат шалгах (Баруун дээд буланд)
+            if (clickY >= window._macdTop && clickY <= window._macdTop + 20) {
+                if (clickX >= window._btnMaxX && clickX <= window._btnMaxX + 16) {
+                    window.macdMode = window.macdMode === 'max' ? 'normal' : 'max';
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnNormX && clickX <= window._btnNormX + 16) {
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnMinX && clickX <= window._btnMinX + 16) {
+                    window.macdMode = window.macdMode === 'min' ? 'normal' : 'min';
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+            }
+
+            // RSI товчлуурын координат шалгах (Баруун дээд буланд)
+            if (clickY >= window._rsiTop && clickY <= window._rsiTop + 20) {
+                if (clickX >= window._btnRsiMaxX && clickX <= window._btnRsiMaxX + 16) {
+                    window.rsiMode = window.rsiMode === 'max' ? 'normal' : 'max';
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnRsiNormX && clickX <= window._btnRsiNormX + 16) {
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnRsiMinX && clickX <= window._btnRsiMinX + 16) {
+                    window.rsiMode = window.rsiMode === 'min' ? 'normal' : 'min';
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+            }
+        });
+
+        canvas.addEventListener("mousemove", e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+            
+            if (draggingPrice) {
+                const dy = e.clientY - lastY;
+                lastY = e.clientY;
+                priceScale *= (1 + dy * 0.005);
+                priceScale = Math.max(0.1, Math.min(priceScale, 10));
+                draw();
+                return;
+            }
+
+            if (dragging) {
+                const dx = e.clientX - lastX;
+                const move = Math.round(dx / 10);
+                offset = Math.max(0, Math.min(window.allData.length - visibleCount, offset + move));
+                lastX = e.clientX;
+                
+                const dy = e.clientY - lastY;
+                if (lastChartHeight > 0) {
+                    const pricePerPixel = lastPriceRange / lastChartHeight;
+                    priceOffset += dy * pricePerPixel;
+                }
+                lastY = e.clientY;
+            }
+            
+            const padding = 40;
+            const priceScaleWidth = 80;
+            if (mouse.x > canvas.width - padding - priceScaleWidth) {
+                canvas.style.cursor = "ns-resize";
+            } else if (dragging) {
+                canvas.style.cursor = "grabbing";
+            } else {
+                canvas.style.cursor = "crosshair";
+            }
+            
+            draw();
+        });
+
+        canvas.addEventListener("mousedown", e => { 
+            const padding = 40;
+            const priceScaleWidth = 80;
+            const scaleStartX = canvas.width - padding - priceScaleWidth;
+            
+            if (mouse.x > scaleStartX) {
+                draggingPrice = true;
+                lastY = e.clientY;
+            } else {
+                dragging = true; 
+                lastX = e.clientX; 
+                lastY = e.clientY;
+            }
+        });
+        
+        canvas.addEventListener("mouseup", () => { 
+            dragging = false; 
+            draggingPrice = false; 
+        });
+        
+        canvas.addEventListener("mouseleave", () => { 
+            dragging = false; 
+            draggingPrice = false;
+            mouse.x = null; 
+            draw(); 
+        });
+
+        canvas.addEventListener("dblclick", () => {
+            priceScale = 1;
+            priceOffset = 0;
+            draw();
+        });
+        
+        canvas.addEventListener("wheel", e => {
+            e.preventDefault();
+            visibleCount += e.deltaY > 0 ? 10 : -10;
+            visibleCount = Math.max(minVisible, Math.min(maxVisible, visibleCount));
+            offset = Math.min(offset, window.allData.length - visibleCount);
+            draw();
+        }, { passive:false });
+
+        fetchCandles();
+    });
+
+    // Индикатор бүрийн булангийн товчлууруудыг зурах туслах функц
+    function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
+        const rightEdge = padding + chartWidth - 10;
+        const btnY = topY + 4;
+        
+        // Баруун гар талаас эхлээд: Максимайс, Нормал, Минимайс
+        const minX = rightEdge - 14;
+        const normX = minX - 18;
+        const maxX = normX - 18;
+
+        window[maxBtnRef] = maxX;
+        window[normBtnRef] = normX;
+        window[minBtnRef] = minX;
+
+        ctx.fillStyle = "#1f2630";
+        ctx.fillRect(maxX, btnY, 14, 14);
+        ctx.fillRect(normX, btnY, 14, 14);
+        ctx.fillRect(minX, btnY, 14, 14);
+
+        ctx.fillStyle = "#aaa";
+        ctx.font = "9px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText("▲", maxX + 7, btnY + 7);
+        ctx.fillText("■", normX + 7, btnY + 7);
+        ctx.fillText("▼", minX + 7, btnY + 7);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+    }
+
+    // MACD зурах функц
+    function drawMACD(ctx, data, macdArray, signalArray, histArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio) {
+        if (!macdArray || !macdArray.length) return;
+
+        const macdTop = padding + mainChartHeight + 20;
+        window._macdTop = macdTop;
+        const macdHeight = chartHeight * macdRatio - 15;
+
+        const macdOffset = macdArray.length - window.allData.length;
+        const startIdx = (window.allData.length - data.length) + macdOffset;
+
+        let visibleMacdValues = [];
+        data.forEach((d, i) => {
+            const idx = startIdx + i;
+            if (idx >= 0 && idx < macdArray.length) {
+                visibleMacdValues.push(macdArray[idx] || 0);
+                visibleMacdValues.push(signalArray[idx] || 0);
+                visibleMacdValues.push(histArray[idx] || 0);
+            }
+        });
+
+        let maxMacd = Math.max(...visibleMacdValues, 0);
+        let minMacd = Math.min(...visibleMacdValues, 0);
+        if (maxMacd === minMacd) { maxMacd = 1; minMacd = -1; }
+
+        const macdToY = val => macdTop + macdHeight - ((val - minMacd) / (maxMacd - minMacd)) * macdHeight;
+
+        ctx.strokeStyle = "#1f2630";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, macdTop);
+        ctx.lineTo(padding + chartWidth, macdTop);
+        ctx.stroke();
+
+        if (window.macdMode !== 'min') {
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth;
+                const hVal = (idx >= 0 && idx < histArray.length) ? histArray[idx] : 0;
+                const yZero = macdToY(0);
+                const yVal = macdToY(hVal);
+
+                ctx.fillStyle = hVal >= 0 ? "#0ecb81" : "#f6465d";
+                ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.max(1, Math.abs(yZero - yVal)));
+            });
+
+            ctx.strokeStyle = "#2962ff";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                const mVal = (idx >= 0 && idx < macdArray.length) ? macdArray[idx] : 0;
+                const y = macdToY(mVal);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            ctx.strokeStyle = "#ff9800";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                const sVal = (idx >= 0 && idx < signalArray.length) ? signalArray[idx] : 0;
+                const y = macdToY(sVal);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        let targetIdx = data.length - 1;
+        if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
+            const mIdx = Math.floor((mouseObj.x - padding) / candleWidth);
+            if (mIdx >= 0 && mIdx < data.length) {
+                targetIdx = mIdx;
+            }
+        }
+
+        const activeGlobalIdx = startIdx + targetIdx;
+        if (activeGlobalIdx >= 0 && activeGlobalIdx < macdArray.length) {
+            const mVal = Number(macdArray[activeGlobalIdx] || 0).toFixed(8);
+            const sVal = Number(signalArray[activeGlobalIdx] || 0).toFixed(8);
+            const hVal = Number(histArray[activeGlobalIdx] || 0).toFixed(8);
+
+            ctx.font = "11px Arial";
+            ctx.textBaseline = "top";
+            
+            let startX = padding + 10;
+            let startY = macdTop + 6;
+
+            let curX = startX;
+            const drawMacdLabel = (label, val, valColor) => {
+                ctx.fillStyle = "#888";
+                ctx.fillText(label, curX, startY);
+                curX += ctx.measureText(label).width;
+                ctx.fillStyle = valColor;
+                ctx.fillText(val + "  ", curX, startY);
+                curX += ctx.measureText(val + "  ").width;
+            };
+
+            drawMacdLabel("MACD(12, 26, 9):", mVal, "#2962ff");
+            drawMacdLabel("Signal:", sVal, "#ff9800");
+            drawMacdLabel("Hist:", hVal, Number(hVal) >= 0 ? "#0ecb81" : "#f6465d");
+        }
+
+        drawWindowButtons(ctx, macdTop, chartWidth, padding, '_btnMaxX', '_btnNormX', '_btnMinX');
+    }
+
+    // RSI зурах функц
+    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, rsiRatio) {
+        if (!rsiArray || !rsiArray.length) return;
+
+        const macdHeight = chartHeight * macdRatio;
+        const rsiTop = padding + mainChartHeight + macdHeight + 25;
+        window._rsiTop = rsiTop;
+        const rsiHeight = chartHeight * rsiRatio - 20;
+
+        const rsiToY = val => rsiTop + rsiHeight - (val / 100) * rsiHeight;
+
+        ctx.strokeStyle = "#1f2630";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, rsiTop);
+        ctx.lineTo(padding + chartWidth, rsiTop);
+        ctx.stroke();
+
+        if (window.rsiMode !== 'min') {
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = "#2a2e39";
+            
+            let y70 = rsiToY(70);
+            ctx.beginPath(); ctx.moveTo(padding, y70); ctx.lineTo(padding + chartWidth, y70); ctx.stroke();
+
+            let y30 = rsiToY(30);
+            ctx.beginPath(); ctx.moveTo(padding, y30); ctx.lineTo(padding + chartWidth, y30); ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.strokeStyle = "#e91e63";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            
+            const rsiOffset = rsiArray.length - window.allData.length;
+            const startIdx = (window.allData.length - data.length) + rsiOffset;
+
+            data.forEach((d, i) => {
+                const rsiIndex = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                
+                const rVal = (rsiIndex >= 0 && rsiIndex < rsiArray.length && rsiArray[rsiIndex] !== undefined) 
+                    ? rsiArray[rsiIndex] 
+                    : 50;
+                const y = rsiToY(rVal);
+                
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        let targetIdx = data.length - 1;
+        if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
+            const mIdx = Math.floor((mouseObj.x - padding) / candleWidth);
+            if (mIdx >= 0 && mIdx < data.length) {
+                targetIdx = mIdx;
+            }
+        }
+
+        const activeRsiIndex = (window.allData.length - data.length) + (rsiArray.length - window.allData.length) + targetIdx;
+        if (activeRsiIndex >= 0 && activeRsiIndex < rsiArray.length && rsiArray[activeRsiIndex] !== undefined) {
+            const rVal = Number(rsiArray[activeRsiIndex]).toFixed(2);
+            ctx.font = "11px Arial";
+            ctx.textBaseline = "top";
+            
+            let startX = padding + 10;
+            let startY = rsiTop + 6;
+
+            ctx.fillStyle = "#888";
+            ctx.fillText("RSI(7): ", startX, startY);
+            let w1 = ctx.measureText("RSI(7): ").width;
+
+            ctx.fillStyle = "#e91e63";
+            ctx.fillText(rVal, startX + w1, startY);
+        }
+
+        drawWindowButtons(ctx, rsiTop, chartWidth, padding, '_btnRsiMaxX', '_btnRsiNormX', '_btnRsiMinX');
+    }
+    </script>
+</body>
+</html>
