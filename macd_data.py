@@ -77,15 +77,7 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         if found_macd_up and found_macd_down:
             break
 
-    # Бүх MACD шугам дээрх эерэг утгуудаас хамгийн өндөр оргилыг олох
-    all_macd_vals = [float(v) for v in macd_line]
-    positive_vals = [v for v in all_macd_vals if v > 0]
-    negative_vals = [v for v in all_macd_vals if v < 0]
-
-    max_up_peak = 0.0
-    min_down_trough = 0.0
-
-    # 0-ийн кросс болсон цэгүүдийг олох (0-ээс дээш гарсан болон доош орсон)
+    # ==================== ЯГ ОДООГИЙН ИДЭВХТЭЙ ВОЛНЫГ ОЛОХ ====================
     up_crossings = []
     down_crossings = []
 
@@ -98,23 +90,40 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         elif prev >= 0 and curr < 0:
             down_crossings.append(i)
 
-    # Хэрэв өсөлтийн кросс олдвол хамгийн сүүлийн өсөлтийн волн доторх хамгийн өндөр оргилыг олох
+    max_up_peak = 0.0
+    min_down_trough = 0.0
+
+    # Хамгийн сүүлийн 0-ээс дээш гарсан волны оргилыг олох
     if up_crossings:
         last_up_start = up_crossings[-1]
-        # Дараагийн 0 кросс хүртэл эсвэл сүүл хүртэлх хэсэг
-        wave_ups = [float(macd_line.iloc[j]) for j in range(last_up_start, len(macd_line)) if float(macd_line.iloc[j]) > 0]
+        wave_ups = []
+        for j in range(last_up_start, len(macd_line)):
+            val = float(macd_line.iloc[j])
+            if val < 0:  # 0-ээс доошоо ороод явахад энэ волн дууссан гэж үзнэ
+                break
+            wave_ups.append(val)
         if wave_ups:
             max_up_peak = max(wave_ups)
 
-    # Хэрэв уналтын кросс олдвол хамгийн сүүлийн уналтын волн доторх хамгийн гүн хонхорхойг олох
+    # Хамгийн сүүлийн 0-ээс доош орсон волны хонхорхойг олох
     if down_crossings:
         last_down_start = down_crossings[-1]
-        wave_downs = [float(macd_line.iloc[j]) for j in range(last_down_start, len(macd_line)) if float(macd_line.iloc[j]) < 0]
+        wave_downs = []
+        for j in range(last_down_start, len(macd_line)):
+            val = float(macd_line.iloc[j])
+            if val > 0:  # 0-ээс дээш гараад явахад энэ волн дууссан гэж үзнэ
+                break
+            wave_downs.append(val)
         if wave_downs:
             min_down_trough = min(wave_downs)
 
-    # Чиний хүссэнчлэн кросс волны оргил болон хонхорхойн дундаж
-    initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
+    # Идэвхтэй волнуудын оргил болон хонхорхойн дундаж
+    if max_up_peak != 0.0 and min_down_trough != 0.0:
+        initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
+    else:
+        initial_st["macd_average"] = None
+
+    found_signal_up = False
 
     found_signal_up = False
     found_signal_down = False
