@@ -252,7 +252,13 @@
                 maxPrice += pricePadding;
                 minPrice -= pricePadding;
             }
-            if (maxPrice === minPrice) maxPrice += 1;
+
+            // --- КАНДЛУУДЫГ ҮНДСЭН 60% ЗАЙНДДАА БАГТАЖ МАСШЛАГДАХ ХЭСЭГ ---
+            const priceRange = maxPrice - minPrice;
+            const paddingBuffer = priceRange * 0.05; // Дээд болон доод талдаа 5% зай үлдээнэ
+            maxPrice += paddingBuffer;
+            minPrice -= paddingBuffer;
+            // -------------------------------------------------------------
 
             if (priceScale !== 1) {
                 const mid = (maxPrice + minPrice) / 2;
@@ -267,9 +273,9 @@
             maxPrice += priceOffset;
             minPrice += priceOffset;
 
-            const priceToY = p => padding + (maxPrice - p) / (maxPrice - minPrice) * chartHeight;
-            const yToPrice = y => maxPrice - ((y - padding) / chartHeight) * (maxPrice - minPrice);
-            const candleWidth = chartWidth / data.length;
+            const mainChartHeight = chartHeight * 0.60; // Үндсэн кандл зурах зай (60%)
+            const priceToY = p => padding + (maxPrice - p) / (maxPrice - minPrice) * mainChartHeight;
+            const yToPrice = y => maxPrice - ((y - padding) / mainChartHeight) * (maxPrice - minPrice);
 
             ctx.font = "12px Arial";
             ctx.strokeStyle = "#1f2630";
