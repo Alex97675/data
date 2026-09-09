@@ -408,7 +408,7 @@ def start_background_daemon():
         return
 
     print(f"[SUCCESS] Found {len(symbols)} active symbols.")
-    print("\n" + "="*60 + "\nONE-TIME HISTORICAL DOWNLOAD\n" + "="*60)
+    print("\n" + "="*60 + "\nONE-TIME HISTORICAL DOWNLOAD (TURBO MODE)\n" + "="*60)
 
     client = UMFutures()
     client.session.requests_params = {"timeout": 10}
@@ -420,14 +420,21 @@ def start_background_daemon():
         nonlocal loaded_count
         if not daemon_is_running:
             return symbol, None
+        
+        # Лимитийн 50% орчимд ажиллахаар хугацааг багасгав (~20-30 сек)
+        time.sleep(0.05) 
+        
         res_sym, hist = fetch_historical_klines(client, symbol)
         with progress_lock:
             loaded_count += 1
-            print(f"\r[LOADING] {loaded_count}/{len(symbols)}", end="", flush=True)
+            print(f"\r[LOADING] {loaded_count}/{len(symbols)} - {symbol}", end="", flush=True)
         return res_sym, hist
 
     start_time = time.time()
-    with ThreadPoolExecutor(max_workers=REST_WORKERS) as executor:
+    
+    # Урсгалын тоог 10 болгож өсгөв (Турбо горим)
+    TURBO_WORKERS = 10 
+    with ThreadPoolExecutor(max_workers=TURBO_WORKERS) as executor:
         futures = [executor.submit(worker, s) for s in symbols]
         for f in as_completed(futures):
             if not daemon_is_running:
@@ -447,7 +454,7 @@ def start_background_daemon():
     
     threading.Thread(target=status_monitor, daemon=True).start()
     start_websocket(symbols)
-
+    
 # ==================== ENTRY POINT ====================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
