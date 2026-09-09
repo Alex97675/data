@@ -429,7 +429,7 @@
                 drawTextLabel("C:", cVal, colorCode);
             }
 
-            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio);
+            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, window.macdAverageValue, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio);
             drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, rsiRatio);
         }
 
@@ -464,6 +464,9 @@
                     window.macdArrayData = macdObj.macd_array;
                     window.signalArrayData = macdObj.signal_array;
                     window.histArrayData = macdObj.histogram_array;
+                    
+                    // macd_average нь ганц утгаар ирж байгаа тул float руу хөрвүүлж хадгална
+                    window.macdAverageValue = macdObj.macd_average !== null ? Number(macdObj.macd_average) : null;
                 }
 
                 draw();
@@ -729,8 +732,7 @@
         ctx.textBaseline = "top";
     }
 
-    // MACD зурах функц
-    function drawMACD(ctx, data, macdArray, signalArray, histArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio) {
+    function drawMACD(ctx, data, macdArray, signalArray, histArray, avgValue, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio) {
         if (!macdArray || !macdArray.length) return;
 
         const macdTop = padding + mainChartHeight + 20;
@@ -750,6 +752,10 @@
             }
         });
 
+        if (avgValue !== null && avgValue !== undefined) {
+            visibleMacdValues.push(avgValue);
+        }
+
         let maxMacd = Math.max(...visibleMacdValues, 0);
         let minMacd = Math.min(...visibleMacdValues, 0);
         if (maxMacd === minMacd) { maxMacd = 1; minMacd = -1; }
@@ -764,6 +770,7 @@
         ctx.stroke();
 
         if (window.macdMode !== 'min') {
+            // Histogram зурах
             data.forEach((d, i) => {
                 const idx = startIdx + i;
                 const x = padding + i * candleWidth;
@@ -772,9 +779,10 @@
                 const yVal = macdToY(hVal);
 
                 ctx.fillStyle = hVal >= 0 ? "#0ecb81" : "#f6465d";
-                ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.max(1, Math.abs(yZero - yVal)));
+                ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
             });
 
+            // MACD Line (Цэнхэр шугам)
             ctx.strokeStyle = "#2962ff";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -787,6 +795,20 @@
             });
             ctx.stroke();
 
+            // MACD Average (Ганц утгаар ирсэн бол тухайн түвшинд хэвтээ тасархай шугам татна)
+            if (avgValue !== null && avgValue !== undefined) {
+                const yAvg = macdToY(avgValue);
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = "#00bcd4";
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(padding, yAvg);
+                ctx.lineTo(padding + chartWidth, yAvg);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Signal Line (Улбар шар шугам)
             ctx.strokeStyle = "#ff9800";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -798,6 +820,40 @@
                 if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke();
+
+            // --- MACD Line дээрх харагдаж буй хэсгийн хамгийн өндөр болон нам цэгүүдийг тэмдэглэх ---
+            let visibleMacdPoints = [];
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                if (idx >= 0 && idx < macdArray.length) {
+                    const x = padding + i * candleWidth + candleWidth / 2;
+                    const val = macdArray[idx];
+                    visibleMacdPoints.push({ x, y: macdToY(val), val });
+                }
+            });
+
+            if (visibleMacdPoints.length > 0) {
+                let maxPoint = visibleMacdPoints.reduce((max, p) => p.val > max.val ? p : max, visibleMacdPoints[0]);
+                let minPoint = visibleMacdPoints.reduce((min, p) => p.val < min.val ? p : min, visibleMacdPoints[0]);
+
+                // Хамгийн өндөр цэг (Ногоон өнгөөр)
+                ctx.fillStyle = "#0ecb81";
+                ctx.beginPath();
+                ctx.arc(maxPoint.x, maxPoint.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Хамгийн нам цэг (Улаан өнгөөр)
+                ctx.fillStyle = "#f6465d";
+                ctx.beginPath();
+                ctx.arc(minPoint.x, minPoint.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
         }
 
         let targetIdx = data.length - 1;
@@ -830,7 +886,10 @@
                 curX += ctx.measureText(val + "  ").width;
             };
 
-            drawMacdLabel("MACD(12, 26, 9):", mVal, "#2962ff");
+            drawMacdLabel("MACD:", mVal, "#2962ff");
+            if (avgValue !== null && avgValue !== undefined) {
+                drawMacdLabel("Avg:", Number(avgValue).toFixed(8), "#00bcd4");
+            }
             drawMacdLabel("Signal:", sVal, "#ff9800");
             drawMacdLabel("Hist:", hVal, Number(hVal) >= 0 ? "#0ecb81" : "#f6465d");
         }
