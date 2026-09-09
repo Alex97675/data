@@ -243,6 +243,9 @@
             const data = window.allData.slice(start, end);
             if (!data.length) return;
 
+            const chartWidth = canvas.width - padding * 2 - priceScaleWidth;
+            const candleWidth = chartWidth / data.length; // <-- candleWidth-ийг энд эхэлж тодорхойлно
+
             const prices = data.flatMap(d => [d[2], d[3]]);
             let maxPrice = Math.max(...prices);
             let minPrice = Math.min(...prices);
@@ -253,12 +256,10 @@
                 minPrice -= pricePadding;
             }
 
-            // --- КАНДЛУУДЫГ ҮНДСЭН 60% ЗАЙНДДАА БАГТАЖ МАСШЛАГДАХ ХЭСЭГ ---
             const priceRange = maxPrice - minPrice;
-            const paddingBuffer = priceRange * 0.05; // Дээд болон доод талдаа 5% зай үлдээнэ
+            const paddingBuffer = priceRange * 0.05; 
             maxPrice += paddingBuffer;
             minPrice -= paddingBuffer;
-            // -------------------------------------------------------------
 
             if (priceScale !== 1) {
                 const mid = (maxPrice + minPrice) / 2;
@@ -273,7 +274,7 @@
             maxPrice += priceOffset;
             minPrice += priceOffset;
 
-            const mainChartHeight = chartHeight * 0.60; // Үндсэн кандл зурах зай (60%)
+            const mainChartHeight = chartHeight * 0.60; 
             const priceToY = p => padding + (maxPrice - p) / (maxPrice - minPrice) * mainChartHeight;
             const yToPrice = y => maxPrice - ((y - padding) / mainChartHeight) * (maxPrice - minPrice);
 
