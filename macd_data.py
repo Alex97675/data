@@ -12,7 +12,7 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         "uplimit_cross_line": None, "downlimit_cross_line": None,
         "trend": "None",
         "macd_initial_up_price": None, "macd_initial_up_time": None,
-        "macd_average": None,  # Шинэ нэгдмэл дундаж утга
+        "macd_average": None,
         "macd_initial_down_price": None, "macd_initial_down_time": None,
         "signal_initial_up_price": None, "signal_initial_up_time": None,
         "signal_initial_down_price": None, "signal_initial_down_time": None
@@ -49,8 +49,6 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
 
     found_macd_up = False
     found_macd_down = False
-    up_start_idx = -1
-    down_start_idx = -1
 
     for i in range(len(macd_line) - 1, 0, -1):
         curr_line = macd_line.iloc[i]
@@ -62,7 +60,6 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
                 initial_st["macd_initial_up_price"] = float(klines[kline_idx][1])
                 ts_ms = int(klines[kline_idx][0])
                 initial_st["macd_initial_up_time"] = datetime.datetime.fromtimestamp(ts_ms / 1000.0, mongolia_tz).strftime('%Y-%m-%d %H:%M:%S')
-                up_start_idx = i
                 found_macd_up = True
 
         if not found_macd_down and prev_line > 0 and curr_line < 0:
@@ -71,13 +68,12 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
                 initial_st["macd_initial_down_price"] = float(klines[kline_idx][1])
                 ts_ms = int(klines[kline_idx][0])
                 initial_st["macd_initial_down_time"] = datetime.datetime.fromtimestamp(ts_ms / 1000.0, mongolia_tz).strftime('%Y-%m-%d %H:%M:%S')
-                down_start_idx = i
                 found_macd_down = True
 
         if found_macd_up and found_macd_down:
             break
 
-    # ==================== ЯГ ОДООГИЙН ИДЭВХТЭЙ ВОЛНЫГ ОЛОХ ====================
+    # ==================== СЕКУНД ТУТАМД ДИНАМИКААР ШИНЭЧЛЭГДЭХ ВОЛН ====================
     up_crossings = []
     down_crossings = []
 
@@ -93,63 +89,32 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
     max_up_peak = 0.0
     min_down_trough = 0.0
 
-    # Хамгийн сүүлийн 0-ээс дээш гарсан волны оргилыг олох
     if up_crossings:
         last_up_start = up_crossings[-1]
         wave_ups = []
         for j in range(last_up_start, len(macd_line)):
             val = float(macd_line.iloc[j])
-            if val < 0:  # 0-ээс доошоо ороод явахад энэ волн дууссан гэж үзнэ
+            if val < 0:
                 break
             wave_ups.append(val)
         if wave_ups:
             max_up_peak = max(wave_ups)
 
-    # Хамгийн сүүлийн 0-ээс доош орсон волны хонхорхойг олох
     if down_crossings:
         last_down_start = down_crossings[-1]
         wave_downs = []
         for j in range(last_down_start, len(macd_line)):
             val = float(macd_line.iloc[j])
-            if val > 0:  # 0-ээс дээш гараад явахад энэ волн дууссан гэж үзнэ
+            if val > 0:
                 break
             wave_downs.append(val)
         if wave_downs:
             min_down_trough = min(wave_downs)
 
-    # Идэвхтэй волнуудын оргил болон хонхорхойн дундаж
     if max_up_peak != 0.0 and min_down_trough != 0.0:
         initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
     else:
         initial_st["macd_average"] = None
-
-    found_signal_up = False
-
-    found_signal_up = False
-    found_signal_down = False
-
-    for i in range(len(macd_signal) - 1, 0, -1):
-        curr_sig = macd_signal.iloc[i]
-        prev_sig = macd_signal.iloc[i-1]
-        
-        if not found_signal_up and prev_sig < 0 and curr_sig > 0:
-            kline_idx = i + offset
-            if 0 <= kline_idx < len(klines):
-                initial_st["signal_initial_up_price"] = float(klines[kline_idx][1])
-                ts_ms = int(klines[kline_idx][0])
-                initial_st["signal_initial_up_time"] = datetime.datetime.fromtimestamp(ts_ms / 1000.0, mongolia_tz).strftime('%Y-%m-%d %H:%M:%S')
-                found_signal_up = True
-
-        if not found_signal_down and prev_sig > 0 and curr_sig < 0:
-            kline_idx = i + offset
-            if 0 <= kline_idx < len(klines):
-                initial_st["signal_initial_down_price"] = float(klines[kline_idx][1])
-                ts_ms = int(klines[kline_idx][0])
-                initial_st["signal_initial_down_time"] = datetime.datetime.fromtimestamp(ts_ms / 1000.0, mongolia_tz).strftime('%Y-%m-%d %H:%M:%S')
-                found_signal_down = True
-
-        if found_signal_up and found_signal_down:
-            break
 
     return initial_st
 
