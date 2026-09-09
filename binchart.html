@@ -168,8 +168,11 @@
 
     window.dispatchChartUpdate = function() {}
 
-    // Глобал хувьсагчид
     let liveInterval = null;
+
+    // Индикаторын төлөвүүд ('normal' | 'max' | 'min')
+    window.macdMode = 'normal';
+    window.rsiMode = 'normal';
 
     document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById("chart");
@@ -243,7 +246,7 @@
             const data = window.allData.slice(start, end);
             if (!data.length) return;
 
-            const candleWidth = chartWidth / data.length; // Өмнө зарлагдсан chartWidth-ийг шууд ашиглана
+            const candleWidth = chartWidth / data.length;
 
             const prices = data.flatMap(d => [d[2], d[3]]);
             let maxPrice = Math.max(...prices);
@@ -273,7 +276,24 @@
             maxPrice += priceOffset;
             minPrice += priceOffset;
 
-            const mainChartHeight = chartHeight * 0.60; 
+            // Динамик өндрийн хуваарилалт (Toggle горимоор өөрчлөгдөнө)
+            let mainRatio = 0.60;
+            let macdRatio = 0.20;
+            let rsiRatio = 0.20;
+
+            if (window.macdMode === 'max') {
+                mainRatio = 0.20; macdRatio = 0.60; rsiRatio = 0.20;
+            } else if (window.macdMode === 'min') {
+                mainRatio = 0.70; macdRatio = 0.05; rsiRatio = 0.25;
+            }
+
+            if (window.rsiMode === 'max') {
+                mainRatio = 0.20; macdRatio = 0.20; rsiRatio = 0.60;
+            } else if (window.rsiMode === 'min') {
+                mainRatio = 0.70; macdRatio = 0.25; rsiRatio = 0.05;
+            }
+
+            const mainChartHeight = chartHeight * mainRatio; 
             const priceToY = p => padding + (maxPrice - p) / (maxPrice - minPrice) * mainChartHeight;
             const yToPrice = y => maxPrice - ((y - padding) / mainChartHeight) * (maxPrice - minPrice);
 
@@ -305,7 +325,7 @@
                 }
 
                 ctx.strokeStyle = "#1f2630";
-                ctx.beginPath(); ctx.moveTo(x, padding); ctx.lineTo(x, padding + chartHeight); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, padding); ctx.lineTo(x, padding + mainChartHeight); ctx.stroke();
                 
                 ctx.fillStyle = "#aaa";
                 ctx.fillText(label, x, padding + chartHeight + 20);
@@ -357,13 +377,13 @@
             ctx.fillStyle = "#f0b90b";
             ctx.fillText(formatPrice(lastClose), padding + chartWidth + 5, yLast - 4);
 
-            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
+            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + mainChartHeight) {
                 const index = Math.floor((mouse.x - padding) / candleWidth);
                 const candle = data[index];
                 if (candle) {
                     const candleX = padding + index * candleWidth + candleWidth / 2;
                     ctx.strokeStyle = "#888";
-                    ctx.beginPath(); ctx.moveTo(candleX, padding); ctx.lineTo(candleX, padding + chartHeight); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(candleX, padding); ctx.lineTo(candleX, padding + mainChartHeight); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(padding, mouse.y); ctx.lineTo(padding + chartWidth, mouse.y); ctx.stroke();
 
                     const price = yToPrice(mouse.y);
@@ -373,7 +393,7 @@
             }
 
             let activeCandle = data[data.length - 1]; 
-            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
+            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + mainChartHeight) {
                 const index = Math.floor((mouse.x - padding) / candleWidth);
                 if (data[index]) {
                     activeCandle = data[index]; 
@@ -409,8 +429,8 @@
                 drawTextLabel("C:", cVal, colorCode);
             }
 
-            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, padding, chartWidth, chartHeight, candleWidth, mouse);
-            drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse);
+            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio);
+            drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, rsiRatio);
         }
 
         async function fetchCandles() {
@@ -550,6 +570,49 @@
             coinEl.addEventListener("keydown", (e) => { if (e.key === "Enter") triggerAutoUpdate(); });
         }
 
+        // Товчлуур дарах клик үйл явдлуудыг барих хэсэг
+        canvas.addEventListener("click", e => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // MACD товчлуурын координат шалгах (Баруун дээд буланд)
+            if (clickY >= window._macdTop && clickY <= window._macdTop + 20) {
+                if (clickX >= window._btnMaxX && clickX <= window._btnMaxX + 16) {
+                    window.macdMode = window.macdMode === 'max' ? 'normal' : 'max';
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnNormX && clickX <= window._btnNormX + 16) {
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnMinX && clickX <= window._btnMinX + 16) {
+                    window.macdMode = window.macdMode === 'min' ? 'normal' : 'min';
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+            }
+
+            // RSI товчлуурын координат шалгах (Баруун дээд буланд)
+            if (clickY >= window._rsiTop && clickY <= window._rsiTop + 20) {
+                if (clickX >= window._btnRsiMaxX && clickX <= window._btnRsiMaxX + 16) {
+                    window.rsiMode = window.rsiMode === 'max' ? 'normal' : 'max';
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnRsiNormX && clickX <= window._btnRsiNormX + 16) {
+                    window.rsiMode = 'normal';
+                    draw(); return;
+                }
+                if (clickX >= window._btnRsiMinX && clickX <= window._btnRsiMinX + 16) {
+                    window.rsiMode = window.rsiMode === 'min' ? 'normal' : 'min';
+                    window.macdMode = 'normal';
+                    draw(); return;
+                }
+            }
+        });
+
         canvas.addEventListener("mousemove", e => {
             const rect = canvas.getBoundingClientRect();
             mouse.x = e.clientX - rect.left;
@@ -635,13 +698,44 @@
         fetchCandles();
     });
 
-    // MACD болон RSI зурах функцүүд
-    function drawMACD(ctx, data, macdArray, signalArray, histArray, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
+    // Индикатор бүрийн булангийн товчлууруудыг зурах туслах функц
+    function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
+        const rightEdge = padding + chartWidth - 10;
+        const btnY = topY + 4;
+        
+        // Баруун гар талаас эхлээд: Максимайс, Нормал, Минимайс
+        const minX = rightEdge - 14;
+        const normX = minX - 18;
+        const maxX = normX - 18;
+
+        window[maxBtnRef] = maxX;
+        window[normBtnRef] = normX;
+        window[minBtnRef] = minX;
+
+        ctx.fillStyle = "#1f2630";
+        ctx.fillRect(maxX, btnY, 14, 14);
+        ctx.fillRect(normX, btnY, 14, 14);
+        ctx.fillRect(minX, btnY, 14, 14);
+
+        ctx.fillStyle = "#aaa";
+        ctx.font = "9px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText("▲", maxX + 7, btnY + 7);
+        ctx.fillText("■", normX + 7, btnY + 7);
+        ctx.fillText("▼", minX + 7, btnY + 7);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+    }
+
+    // MACD зурах функц
+    function drawMACD(ctx, data, macdArray, signalArray, histArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio) {
         if (!macdArray || !macdArray.length) return;
 
-        const mainChartHeight = chartHeight * 0.60;
         const macdTop = padding + mainChartHeight + 20;
-        const macdHeight = chartHeight * 0.20 - 10;
+        window._macdTop = macdTop;
+        const macdHeight = chartHeight * macdRatio - 15;
 
         const macdOffset = macdArray.length - window.allData.length;
         const startIdx = (window.allData.length - data.length) + macdOffset;
@@ -669,40 +763,42 @@
         ctx.lineTo(padding + chartWidth, macdTop);
         ctx.stroke();
 
-        data.forEach((d, i) => {
-            const idx = startIdx + i;
-            const x = padding + i * candleWidth;
-            const hVal = (idx >= 0 && idx < histArray.length) ? histArray[idx] : 0;
-            const yZero = macdToY(0);
-            const yVal = macdToY(hVal);
+        if (window.macdMode !== 'min') {
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth;
+                const hVal = (idx >= 0 && idx < histArray.length) ? histArray[idx] : 0;
+                const yZero = macdToY(0);
+                const yVal = macdToY(hVal);
 
-            ctx.fillStyle = hVal >= 0 ? "#0ecb81" : "#f6465d";
-            ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
-        });
+                ctx.fillStyle = hVal >= 0 ? "#0ecb81" : "#f6465d";
+                ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.max(1, Math.abs(yZero - yVal)));
+            });
 
-        ctx.strokeStyle = "#2962ff";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        data.forEach((d, i) => {
-            const idx = startIdx + i;
-            const x = padding + i * candleWidth + candleWidth / 2;
-            const mVal = (idx >= 0 && idx < macdArray.length) ? macdArray[idx] : 0;
-            const y = macdToY(mVal);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+            ctx.strokeStyle = "#2962ff";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                const mVal = (idx >= 0 && idx < macdArray.length) ? macdArray[idx] : 0;
+                const y = macdToY(mVal);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
 
-        ctx.strokeStyle = "#ff9800";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        data.forEach((d, i) => {
-            const idx = startIdx + i;
-            const x = padding + i * candleWidth + candleWidth / 2;
-            const sVal = (idx >= 0 && idx < signalArray.length) ? signalArray[idx] : 0;
-            const y = macdToY(sVal);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+            ctx.strokeStyle = "#ff9800";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            data.forEach((d, i) => {
+                const idx = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                const sVal = (idx >= 0 && idx < signalArray.length) ? signalArray[idx] : 0;
+                const y = macdToY(sVal);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
 
         let targetIdx = data.length - 1;
         if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
@@ -738,15 +834,18 @@
             drawMacdLabel("Signal:", sVal, "#ff9800");
             drawMacdLabel("Hist:", hVal, Number(hVal) >= 0 ? "#0ecb81" : "#f6465d");
         }
+
+        drawWindowButtons(ctx, macdTop, chartWidth, padding, '_btnMaxX', '_btnNormX', '_btnMinX');
     }
 
-    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj) {
+    // RSI зурах функц
+    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, rsiRatio) {
         if (!rsiArray || !rsiArray.length) return;
 
-        const mainChartHeight = chartHeight * 0.60;
-        const macdHeight = chartHeight * 0.20;
-        const rsiTop = padding + mainChartHeight + macdHeight + 35;
-        const rsiHeight = chartHeight * 0.20 - 15;
+        const macdHeight = chartHeight * macdRatio;
+        const rsiTop = padding + mainChartHeight + macdHeight + 25;
+        window._rsiTop = rsiTop;
+        const rsiHeight = chartHeight * rsiRatio - 20;
 
         const rsiToY = val => rsiTop + rsiHeight - (val / 100) * rsiHeight;
 
@@ -757,35 +856,37 @@
         ctx.lineTo(padding + chartWidth, rsiTop);
         ctx.stroke();
 
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = "#2a2e39";
-        
-        let y70 = rsiToY(70);
-        ctx.beginPath(); ctx.moveTo(padding, y70); ctx.lineTo(padding + chartWidth, y70); ctx.stroke();
-
-        let y30 = rsiToY(30);
-        ctx.beginPath(); ctx.moveTo(padding, y30); ctx.lineTo(padding + chartWidth, y30); ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.strokeStyle = "#e91e63";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        
-        const rsiOffset = rsiArray.length - window.allData.length;
-        const startIdx = (window.allData.length - data.length) + rsiOffset;
-
-        data.forEach((d, i) => {
-            const rsiIndex = startIdx + i;
-            const x = padding + i * candleWidth + candleWidth / 2;
+        if (window.rsiMode !== 'min') {
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = "#2a2e39";
             
-            const rVal = (rsiIndex >= 0 && rsiIndex < rsiArray.length && rsiArray[rsiIndex] !== undefined) 
-                ? rsiArray[rsiIndex] 
-                : 50;
-            const y = rsiToY(rVal);
+            let y70 = rsiToY(70);
+            ctx.beginPath(); ctx.moveTo(padding, y70); ctx.lineTo(padding + chartWidth, y70); ctx.stroke();
+
+            let y30 = rsiToY(30);
+            ctx.beginPath(); ctx.moveTo(padding, y30); ctx.lineTo(padding + chartWidth, y30); ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.strokeStyle = "#e91e63";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
             
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+            const rsiOffset = rsiArray.length - window.allData.length;
+            const startIdx = (window.allData.length - data.length) + rsiOffset;
+
+            data.forEach((d, i) => {
+                const rsiIndex = startIdx + i;
+                const x = padding + i * candleWidth + candleWidth / 2;
+                
+                const rVal = (rsiIndex >= 0 && rsiIndex < rsiArray.length && rsiArray[rsiIndex] !== undefined) 
+                    ? rsiArray[rsiIndex] 
+                    : 50;
+                const y = rsiToY(rVal);
+                
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
 
         let targetIdx = data.length - 1;
         if (mouseObj && mouseObj.x !== null && mouseObj.x > padding && mouseObj.x < padding + chartWidth) {
@@ -795,7 +896,7 @@
             }
         }
 
-        const activeRsiIndex = startIdx + targetIdx;
+        const activeRsiIndex = (window.allData.length - data.length) + (rsiArray.length - window.allData.length) + targetIdx;
         if (activeRsiIndex >= 0 && activeRsiIndex < rsiArray.length && rsiArray[activeRsiIndex] !== undefined) {
             const rVal = Number(rsiArray[activeRsiIndex]).toFixed(2);
             ctx.font = "11px Arial";
@@ -811,6 +912,8 @@
             ctx.fillStyle = "#e91e63";
             ctx.fillText(rVal, startX + w1, startY);
         }
+
+        drawWindowButtons(ctx, rsiTop, chartWidth, padding, '_btnRsiMaxX', '_btnRsiNormX', '_btnRsiMinX');
     }
     </script>
 </body>
