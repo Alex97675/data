@@ -459,3 +459,249 @@ def start_background_daemon():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+
+# ==================== VIRTUAL TRADER BOT (FULL LOGIC) ====================
+JSON_FILE = "trade_data.json"
+MARGIN = 0.6
+LEVERAGE = 10
+POSITION_SIZE = MARGIN * LEVERAGE
+
+trade_is_running = False
+trade_thread = None
+trade_lock = threading.Lock()
+
+def load_trade_data():
+    if os.path.exists(JSON_FILE):
+        try:
+            with open(JSON_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "condition_data": {}, "summary": {}, "counters": {},
+        "open_positions": {}, "trade_history": [], "first_flags": {}
+    }
+
+def save_trade_data(data):
+    try:
+        with open(JSON_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ [FILE ERROR] {e}")
+
+def background_virtual_trader():
+    global trade_is_running
+    print("🤖 [SERVER VIRTUAL TRADER] Виртуал арилжааны бот бүрэн логикоор эхэллээ...")
+    
+    while trade_is_running:
+        try:
+            with selected_lock:
+                symbols = list(selected_symbols)
+            
+            if not symbols:
+                time.sleep(5)
+                continue
+
+            db = load_trade_data()
+            all_open_positions = db.get("open_positions", {})
+            trade_history = db.get("trade_history", {})
+            if isinstance(trade_history, dict):
+                trade_history = list(trade_history.values())
+            first_flags = db.get("first_flags", {})
+            
+            updated = False
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            condition_data = {}
+            total_live_pnl = 0.0
+
+            # 1. Нээлттэй позицуудын PnL болон хаах нөхцөлийг шалгах
+            for pos_key in list(all_open_positions.keys()):
+                symbol = pos_key.split("_")[0]
+                pos_type = pos_key.split("_")[1]
+                
+                with cache_lock:
+                    if symbol not in kline_history or not kline_history[symbol]:
+                        continue
+                    klines = kline_history[symbol]
+                    try:
+                        open0 = float(klines[-1][4])
+                    except (IndexError, ValueError):
+                        continue
+
+                macd_res = calculate_macd_report(klines, symbol)
+                if "error" in macd_res:
+                    continue
+
+                line_dict = macd_res.get("line", {})
+                macd_line1 = float(line_dict.get("-1", 0))
+                macd_line2 = float(line_dict.get("-2", 0))
+                macd_average = float(macd_res.get("macd_average") or 0)
+
+                if open0 > 0:
+                    entry = all_open_positions[pos_key]["entry"]
+                    if pos_type == "LONG":
+                        price_change_percent = ((open0 - entry) / entry) * 100
+                    else:
+                        price_change_percent = ((entry - open0) / entry) * 100
+                    live_pnl_percent = price_change_percent * LEVERAGE
+                    live_pnl_usdt = (POSITION_SIZE * price_change_percent) / 100
+                    all_open_positions[pos_key]["current_price"] = open0
+                    all_open_positions[pos_key]["live_pnl_percent"] = round(live_pnl_percent, 2)
+                    all_open_positions[pos_key]["live_pnl_usdt"] = round(live_pnl_usdt, 2)
+                    total_live_pnl += live_pnl_usdt
+                    updated = True
+
+                long_opened = f"{symbol}_LONG" in all_open_positions
+                short_opened = f"{symbol}_SHORT" in all_open_positions
+
+                # LONG CLOSE
+                if long_opened and pos_type == "LONG" and (macd_line1 <= macd_average and macd_line2 >= macd_average):
+                    pos_info = all_open_positions.pop(f"{symbol}_LONG")
+                    entry_price = pos_info["entry"]
+                    price_change_percent = ((open0 - entry_price) / entry_price) * 100
+                    pnl_percent = price_change_percent * LEVERAGE
+                    pnl_usdt = (POSITION_SIZE * price_change_percent) / 100
+                    print(f"✅ [LONG CLOSE] {symbol} @ {open0} | PnL: {pnl_percent:.2f}% ({pnl_usdt:.2f} USDT)")
+                    trade_history.append({
+                        "symbol": symbol, "type": "LONG", "entry": entry_price, "exit": open0,
+                        "margin": MARGIN, "leverage": LEVERAGE, "pnl_percent": round(pnl_percent, 2),
+                        "pnl_usdt": round(pnl_usdt, 2), "open_time": pos_info.get("open_time"),
+                        "close_time": current_time, "status": "CLOSED"
+                    })
+                    updated = True
+
+                # SHORT CLOSE
+                if short_opened and pos_type == "SHORT" and (macd_line1 >= macd_average and macd_line2 <= macd_average):
+                    pos_info = all_open_positions.pop(f"{symbol}_SHORT")
+                    entry_price = pos_info["entry"]
+                    price_change_percent = ((entry_price - open0) / entry_price) * 100
+                    pnl_percent = price_change_percent * LEVERAGE
+                    pnl_usdt = (POSITION_SIZE * price_change_percent) / 100
+                    print(f"✅ [SHORT CLOSE] {symbol} @ {open0} | PnL: {pnl_percent:.2f}% ({pnl_usdt:.2f} USDT)")
+                    trade_history.append({
+                        "symbol": symbol, "type": "SHORT", "entry": entry_price, "exit": open0,
+                        "margin": MARGIN, "leverage": LEVERAGE, "pnl_percent": round(pnl_percent, 2),
+                        "pnl_usdt": round(pnl_usdt, 2), "open_time": pos_info.get("open_time"),
+                        "close_time": current_time, "status": "CLOSED"
+                    })
+                    updated = True
+
+            total_closed_pnl = sum(item.get("pnl_usdt", 0) for item in trade_history)
+            grand_total_pnl = total_live_pnl + total_closed_pnl
+
+            # 2. Шинэ позиц нээх болон нөхцөл шалгах
+            for symbol in symbols:
+                with cache_lock:
+                    if symbol not in kline_history or len(kline_history[symbol]) < 50:
+                        continue
+                    klines = kline_history[symbol]
+                    try:
+                        open0 = float(klines[-1][4])
+                        open1 = float(klines[-2][4])
+                    except (IndexError, ValueError):
+                        continue
+
+                macd_res = calculate_macd_report(klines, symbol)
+                rsi_res = calculate_rsi_report(klines, symbol)
+                if "error" in macd_res or "error" in rsi_res:
+                    continue
+
+                last_status = rsi_res.get("last_status", "None")
+                macd_average = float(macd_res.get("macd_average") or 0)
+                line_dict = macd_res.get("line", {})
+                macd_line1 = float(line_dict.get("-1", 0))
+                macd_line2 = float(line_dict.get("-2", 0))
+
+                condition_data[symbol] = {
+                    "open0": f"{open0:.8f}", "open1": f"{open1:.8f}",
+                    "macd_line1": f"{macd_line1:.8f}", "macd_line2": f"{macd_line2:.8f}",
+                    "macd_average": f"{macd_average:.8f}", "last_status": last_status
+                }
+
+                long_opened = f"{symbol}_LONG" in all_open_positions
+                short_opened = f"{symbol}_SHORT" in all_open_positions
+                qty = POSITION_SIZE / open0
+
+                long_condition = (
+                    macd_line1 > macd_average 
+                    and macd_line2 <= macd_average 
+                    and (last_status == "30U" or last_status == "70U")
+                )
+                if not long_opened and long_condition:
+                    all_open_positions[f"{symbol}_LONG"] = {
+                        "entry": open0, "qty": round(qty, 6), "margin": MARGIN,
+                        "leverage": LEVERAGE, "current_price": open0, "live_pnl_percent": 0.0,
+                        "live_pnl_usdt": 0.0, "open_time": current_time
+                    }
+                    print(f"🟢 [LONG OPEN] {symbol} @ {open0} (Qty: {qty:.4f})")
+                    updated = True
+
+                short_condition = (
+                    macd_line1 < macd_average 
+                    and macd_line2 >= macd_average 
+                    and (last_status == "70D" or last_status == "30D")
+                )
+                if not short_opened and short_condition:
+                    all_open_positions[f"{symbol}_SHORT"] = {
+                        "entry": open0, "qty": round(qty, 6), "margin": MARGIN,
+                        "leverage": LEVERAGE, "current_price": open0, "live_pnl_percent": 0.0,
+                        "live_pnl_usdt": 0.0, "open_time": current_time
+                    }
+                    print(f"🔴 [SHORT OPEN] {symbol} @ {open0} (Qty: {qty:.4f})")
+                    updated = True
+
+            counters = {}
+            for pos_key in all_open_positions.keys():
+                sym = pos_key.split("_")[0]
+                ptype = pos_key.split("_")[1]
+                if sym not in counters:
+                    counters[sym] = []
+                counters[sym].append(ptype)
+
+            formatted_counters = {}
+            for sym, types in counters.items():
+                if len(types) > 1:
+                    formatted_counters[sym] = "HEDGE"
+                else:
+                    formatted_counters[sym] = types[0]
+
+            save_trade_data({
+                "condition_data": condition_data,
+                "summary": {
+                    "total_live_pnl_usdt": round(total_live_pnl, 2),
+                    "total_closed_pnl_usdt": round(total_closed_pnl, 2),
+                    "grand_total_pnl_usdt": round(grand_total_pnl, 2)
+                },
+                "counters": formatted_counters,
+                "open_positions": all_open_positions,
+                "trade_history": trade_history,
+                "first_flags": first_flags
+            })
+
+        except Exception as e:
+            print(f"⚠️ [TRADER ERROR] {e}")
+
+        time.sleep(5)
+    print("🛑 [SERVER VIRTUAL TRADER] Бот зогслоо.")
+
+@app.get("/start-trade")
+def start_trade_bot():
+    global trade_is_running, trade_thread
+    with trade_lock:
+        if trade_is_running:
+            return {"status": "trade bot already running"}
+        trade_is_running = True
+        trade_thread = threading.Thread(target=background_virtual_trader, daemon=True)
+        trade_thread.start()
+    return {"status": "trade bot started successfully"}
+
+@app.get("/stop-trade")
+def stop_trade_bot():
+    global trade_is_running
+    with trade_lock:
+        if not trade_is_running:
+            return {"status": "trade bot already stopped"}
+        trade_is_running = False
+    return {"status": "trade bot stop signal sent"}
