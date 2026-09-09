@@ -243,8 +243,7 @@
             const data = window.allData.slice(start, end);
             if (!data.length) return;
 
-            const chartWidth = canvas.width - padding * 2 - priceScaleWidth;
-            const candleWidth = chartWidth / data.length; // <-- candleWidth-ийг энд эхэлж тодорхойлно
+            const candleWidth = chartWidth / data.length; // Өмнө зарлагдсан chartWidth-ийг шууд ашиглана
 
             const prices = data.flatMap(d => [d[2], d[3]]);
             let maxPrice = Math.max(...prices);
