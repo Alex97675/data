@@ -231,19 +231,6 @@
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            let isBullish = (window.currentMacdLine1 > window.currentMacdAvg && window.currentMacdLine2 <= window.currentMacdAvg);
-
-            const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            if (isBullish) {
-                bgGrad.addColorStop(0, "rgba(14, 203, 129, 0.12)");  // Ногоон уусгалт
-                bgGrad.addColorStop(1, "rgba(5, 7, 10, 1)");
-            } else {
-                bgGrad.addColorStop(0, "rgba(246, 70, 93, 0.12)");   // Улаан уусгалт
-                bgGrad.addColorStop(1, "rgba(5, 7, 10, 1)");
-            }
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
             const padding = 40;
             const priceScaleWidth = 80;
             const timeScaleHeight = 30;
@@ -451,13 +438,6 @@
                     window.macdArrayData = macdObj.macd_array;
                     window.signalArrayData = macdObj.signal_array;
                     window.histArrayData = macdObj.histogram_array;
-                    
-                    // --- ЭНД ШИНЭЭР НЭМНЭ ---
-                    window.currentMacdAvg = parseFloat(macdObj.macd_average || 0);
-                    const lineDict = macdObj.line || {};
-                    window.currentMacdLine1 = parseFloat(lineDict["-1"] || 0);
-                    window.currentMacdLine2 = parseFloat(lineDict["-2"] || 0);
-                    // -------------------------
                 }
 
                 draw();
