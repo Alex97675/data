@@ -16,6 +16,8 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         "macd_initial_down_price": None, "macd_initial_down_time": None,
         "signal_initial_up_price": None, "signal_initial_up_time": None,
         "signal_initial_down_price": None, "signal_initial_down_time": None
+        "peak_price": 0.0,    # MACD өсөлтийн волны оргил лааны open үнэ
+        "trough_price": 0.0   # MACD уналтын волны жалгын лааны open үнэ
     }
     
     last_cross_up_idx = -1
