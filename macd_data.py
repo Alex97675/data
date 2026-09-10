@@ -6,6 +6,7 @@ import pandas as pd
 macd_state = {}
 
 # ==================== ADVANCED MACD CALCULATION ====================
+# ==================== ADVANCED MACD CALCULATION ====================
 def _build_initial_macd_state(klines, macd_line, macd_signal):
     initial_st = {
         "uplimit": None, "downlimit": None,
@@ -15,8 +16,8 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         "macd_average": None,
         "macd_initial_down_price": None, "macd_initial_down_time": None,
         "signal_initial_up_price": None, "signal_initial_up_time": None,
-        "signal_initial_down_price": None, "signal_initial_down_time": None
-        "peak_price": 0.0,    # MACD өсөлтийн волны оргил лааны open үнэ
+        "signal_initial_down_price": None, "signal_initial_down_time": None,
+        "peak_price": 0.0,    # MACD өсөлтийн волны оргил лааны open үнэ (таслал нэмсэн)
         "trough_price": 0.0   # MACD уналтын волны жалгын лааны open үнэ
     }
     
@@ -75,7 +76,6 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         if found_macd_up and found_macd_down:
             break
 
-    # ==================== СЕКУНД ТУТАМД ДИНАМИКААР ШИНЭЧЛЭГДЭХ ВОЛН ====================
     up_crossings = []
     down_crossings = []
 
@@ -88,10 +88,11 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         elif prev >= 0 and curr < 0:
             down_crossings.append(i)
 
+    max_up_peak = 0.0
+    min_down_trough = 0.0
     max_up_peak_price = 0.0
     min_down_trough_price = 0.0
 
-    # Өсөлтийн волн доторх хамгийн өндөр MACD утгатай лааны open үнийг олох
     if up_crossings:
         last_up_start = up_crossings[-1]
         best_up_idx = None
@@ -103,11 +104,11 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
                 best_up_idx = j
         
         if best_up_idx is not None:
+            max_up_peak = max_val
             kline_idx = best_up_idx + offset
             if 0 <= kline_idx < len(klines):
                 max_up_peak_price = float(klines[kline_idx][1])
 
-    # Уналтын волн доторх хамгийн гүн MACD утгатай лааны open үнийг олох
     if down_crossings:
         last_down_start = down_crossings[-1]
         best_down_idx = None
@@ -119,14 +120,16 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
                 best_down_idx = j
         
         if best_down_idx is not None:
+            min_down_trough = min_val
             kline_idx = best_down_idx + offset
             if 0 <= kline_idx < len(klines):
                 min_down_trough_price = float(klines[kline_idx][1])
 
-    # initial_st буюу буцаах өгөгдөлдөө нэмж өгөх
+    initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
     initial_st["peak_price"] = max_up_peak_price
     initial_st["trough_price"] = min_down_trough_price
-    initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
+
+    return initial_st  # <--- Заавал return байх ёстой
 
 def calculate_macd_report(klines, symbol="UNKNOWN"):
     global macd_state
@@ -254,6 +257,8 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
             "signal_initial_up_time": macd_state[symbol].get('signal_initial_up_time'),
             "signal_initial_down_price": f"{macd_state[symbol].get('signal_initial_down_price'):.8f}" if macd_state[symbol].get('signal_initial_down_price') is not None else None,
             "signal_initial_down_time": macd_state[symbol].get('signal_initial_down_time')
+            "peak_price": f"{macd_state[symbol].get('peak_price', 0.0):.8f}",
+            "trough_price": f"{macd_state[symbol].get('trough_price', 0.0):.8f}",
         }
     except Exception as e:
         return {"error": str(e)}
