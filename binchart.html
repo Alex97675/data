@@ -377,18 +377,54 @@
             ctx.fillStyle = "#f0b90b";
             ctx.fillText(formatPrice(lastClose), padding + chartWidth + 5, yLast - 4);
 
-            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + mainChartHeight) {
+            // --- CROSSHAIR (Бүтэн дэлгэцээр буюу доод хэсэг хүртэл сунгах) ---
+            if (mouse.x && mouse.y && mouse.x > padding && mouse.x < padding + chartWidth && mouse.y > padding && mouse.y < padding + chartHeight) {
                 const index = Math.floor((mouse.x - padding) / candleWidth);
                 const candle = data[index];
                 if (candle) {
                     const candleX = padding + index * candleWidth + candleWidth / 2;
-                    ctx.strokeStyle = "#888";
-                    ctx.beginPath(); ctx.moveTo(candleX, padding); ctx.lineTo(candleX, padding + mainChartHeight); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(padding, mouse.y); ctx.lineTo(padding + chartWidth, mouse.y); ctx.stroke();
+                    
+                    // Босоо шугам нь үндсэн chart-аас эхлээд хамгийн доод RSI хүртэл бүтэн татагдана
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    
+                    ctx.beginPath(); 
+                    ctx.moveTo(candleX, padding); 
+                    ctx.lineTo(candleX, padding + chartHeight); 
+                    ctx.stroke();
 
-                    const price = yToPrice(mouse.y);
-                    ctx.fillStyle = "#111"; ctx.fillRect(padding + chartWidth, mouse.y - 10, priceScaleWidth, 20);
-                    ctx.fillStyle = "#fff"; ctx.fillText(formatPrice(price), padding + chartWidth + 5, mouse.y + 4);
+                    // Хэвтээ шугам (зөвхөн mouse байгаа үндсэн chart эсвэл тухайн хэсэгт)
+                    if (mouse.y <= padding + mainChartHeight) {
+                        ctx.beginPath(); 
+                        ctx.moveTo(padding, mouse.y); 
+                        ctx.lineTo(padding + chartWidth, mouse.y); 
+                        ctx.stroke();
+
+                        const price = yToPrice(mouse.y);
+                        ctx.fillStyle = "#111"; 
+                        ctx.fillRect(padding + chartWidth, mouse.y - 10, priceScaleWidth, 20);
+                        ctx.fillStyle = "#fff"; 
+                        ctx.fillText(formatPrice(price), padding + chartWidth + 5, mouse.y + 4);
+                    }
+                    ctx.setLineDash([]);
+
+                    // Хамгийн доод хэсэгт (Time scale дээр) сонгосон лааны цагийг тод харуулах
+                    const ts = candle[0];
+                    const date = new Date(ts);
+                    let timeLabel = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0') + ':' + date.getSeconds().toString().padStart(2, '0');
+                    if (interval.endsWith('d') || interval.endsWith('w') || interval.endsWith('M')) {
+                        timeLabel = date.toLocaleDateString();
+                    }
+
+                    ctx.fillStyle = "#2962ff";
+                    const timeTextWidth = ctx.measureText(timeLabel).width + 16;
+                    ctx.fillRect(candleX - timeTextWidth / 2, padding + chartHeight + 5, timeTextWidth, 20);
+                    
+                    ctx.fillStyle = "#fff";
+                    ctx.textAlign = "center";
+                    ctx.fillText(timeLabel, candleX, padding + chartHeight + 15);
+                    ctx.textAlign = "left";
                 }
             }
 
