@@ -465,9 +465,13 @@
                     window.signalArrayData = macdObj.signal_array;
                     window.histArrayData = macdObj.histogram_array;
                     
-                    // macd_average нь ганц утгаар ирж байгаа тул float руу хөрвүүлж хадгална
                     window.macdAverageValue = macdObj.macd_average !== null ? Number(macdObj.macd_average) : null;
                 }
+
+                // --- ШИНЭЭР НЭМЭХ ХЭСЭГ: Коин солигдох бүрт zoom болон offset-ийг шинээр голлох ---
+                priceScale = 1;
+                priceOffset = 0;
+                offset = 0;
 
                 draw();
                 dispatchChartUpdate();
