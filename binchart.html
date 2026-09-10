@@ -465,8 +465,8 @@
                 drawTextLabel("C:", cVal, colorCode);
             }
 
-            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, window.macdAverageValue, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio);
-            drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, rsiRatio);
+            drawMACD(ctx, data, window.macdArrayData, window.signalArrayData, window.histArrayData, window.macdAverageValue, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, offset);
+            drawRSI(ctx, data, window.rsiArrayData, padding, chartWidth, chartHeight, candleWidth, mouse, mainChartHeight, macdRatio, rsiRatio, offset);
         }
 
         async function fetchCandles() {
@@ -776,7 +776,7 @@
         ctx.textBaseline = "top";
     }
 
-    function drawMACD(ctx, data, macdArray, signalArray, histArray, avgValue, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio) {
+    function drawMACD(ctx, data, macdArray, signalArray, histArray, avgValue, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, offset) {
         if (!macdArray || !macdArray.length) return;
 
         const macdTop = padding + mainChartHeight + 20;
@@ -784,7 +784,6 @@
         const macdHeight = chartHeight * macdRatio - 15;
 
         const macdOffset = macdArray.length - window.allData.length;
-        // offset-ийг нэмж тооцсоноор chart чирэхэд MACD хамт дагаж гуина
         const startIdx = (window.allData.length - data.length - offset) + macdOffset;
 
         let visibleMacdValues = [];
@@ -935,7 +934,7 @@
         drawWindowButtons(ctx, macdTop, chartWidth, padding, '_btnMaxX', '_btnNormX', '_btnMinX');
     }
 
-    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, rsiRatio) {
+    function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, rsiRatio, offset) {
         if (!rsiArray || !rsiArray.length) return;
 
         const macdHeight = chartHeight * macdRatio;
@@ -968,7 +967,6 @@
             ctx.beginPath();
             
             const rsiOffset = rsiArray.length - window.allData.length;
-            // offset-ийг нэмж тооцсоноор RSI мөн хамт дагаж гуина
             const startIdx = (window.allData.length - data.length - offset) + rsiOffset;
 
             data.forEach((d, i) => {
