@@ -256,9 +256,9 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
             "signal_initial_up_price": f"{macd_state[symbol].get('signal_initial_up_price'):.8f}" if macd_state[symbol].get('signal_initial_up_price') is not None else None,
             "signal_initial_up_time": macd_state[symbol].get('signal_initial_up_time'),
             "signal_initial_down_price": f"{macd_state[symbol].get('signal_initial_down_price'):.8f}" if macd_state[symbol].get('signal_initial_down_price') is not None else None,
-            "signal_initial_down_time": macd_state[symbol].get('signal_initial_down_time')
+            "signal_initial_down_time": macd_state[symbol].get('signal_initial_down_time'),  # <-- Энд таслал байх ёстой
             "peak_price": f"{macd_state[symbol].get('peak_price', 0.0):.8f}",
-            "trough_price": f"{macd_state[symbol].get('trough_price', 0.0):.8f}",
+            "trough_price": f"{macd_state[symbol].get('trough_price', 0.0):.8f}"
         }
     except Exception as e:
         return {"error": str(e)}
