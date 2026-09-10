@@ -421,8 +421,8 @@ def start_background_daemon():
         if not daemon_is_running:
             return symbol, None
         
-        # Лимитийн 50% орчимд ажиллахаар хугацааг багасгав (~20-30 сек)
-        time.sleep(0.05) 
+        # Завсарлагыг 0.3 секунд болгож сунгав (Бинансын weight limit-д хэт ачаалал өгөхгүй)
+        time.sleep(0.3) 
         
         res_sym, hist = fetch_historical_klines(client, symbol)
         with progress_lock:
@@ -431,6 +431,9 @@ def start_background_daemon():
         return res_sym, hist
 
     start_time = time.time()
+    
+    # Урсгалын тоог 5 болгон багасгаж илүү тогтвортой болгов
+    TURBO_WORKERS = 5
     
     # Урсгалын тоог 10 болгож өсгөв (Турбо горим)
     TURBO_WORKERS = 10 
