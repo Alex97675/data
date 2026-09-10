@@ -784,7 +784,8 @@
         const macdHeight = chartHeight * macdRatio - 15;
 
         const macdOffset = macdArray.length - window.allData.length;
-        const startIdx = (window.allData.length - data.length) + macdOffset;
+        // offset-ийг нэмж тооцсоноор chart чирэхэд MACD хамт дагаж гуина
+        const startIdx = (window.allData.length - data.length - offset) + macdOffset;
 
         let visibleMacdValues = [];
         data.forEach((d, i) => {
@@ -967,7 +968,8 @@
             ctx.beginPath();
             
             const rsiOffset = rsiArray.length - window.allData.length;
-            const startIdx = (window.allData.length - data.length) + rsiOffset;
+            // offset-ийг нэмж тооцсоноор RSI мөн хамт дагаж гуина
+            const startIdx = (window.allData.length - data.length - offset) + rsiOffset;
 
             data.forEach((d, i) => {
                 const rsiIndex = startIdx + i;
