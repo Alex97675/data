@@ -32,14 +32,14 @@
 
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://api.binance.com https://fapi.binance.com wss://stream.binance.com wss://fstream.binance.com https://bsdkbxyjwjljximdxdst.supabase.co;">
 </head>
-<body class="bg-brand-dark text-white font-inter flex flex-col min-h-screen">
+<body class="bg-brand-dark text-white font-inter flex flex-col h-screen overflow-hidden">
 
-    <main class="flex-grow pt-32 pb-12 px-4 md:px-6">
-        <div class="max-w-7xl mx-auto flex flex-col gap-6">
-            <!-- Back Button -->
-            <div class="mb-4">
-                <a href="/main_live_tools.html" class="inline-flex items-center text-gray-500 hover:text-brand-gold transition text-[10px] font-black uppercase tracking-widest">
-                    <i class="fas fa-arrow-left mr-2"></i> Back to Live Tools
+    <main class="flex-grow pt-3 pb-3 px-3 md:px-4 flex flex-col h-full">
+        <div class="max-w-7xl w-full mx-auto flex flex-col gap-3 h-full">
+            <!-- Back Button & Controls header container -->
+            <div class="flex items-center justify-between shrink-0">
+                <a href="/main_live_tools.html" class="inline-flex items-center text-gray-400 hover:text-brand-gold transition text-[10px] font-black uppercase tracking-widest">
+                    <i class="fas fa-arrow-left mr-1.5"></i> Back to Tools
                 </a>
             </div>
 
@@ -49,18 +49,18 @@
                 if (!currentScript) return;
 
                 const controlHTML = `
-                <div class="controls-container flex flex-wrap items-center gap-4 p-4 bg-brand-dark-blue border border-brand-border rounded-xl shadow-lg">
-                    <div class="control-item flex items-center space-x-2">
-                        <label for="market" class="text-gray-500 font-bold uppercase text-[10px]">Market:</label>
-                        <select id="market" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                <div class="controls-container flex flex-wrap items-center gap-3 px-3 py-2 bg-brand-dark-blue border border-brand-border rounded-lg shadow-md shrink-0">
+                    <div class="control-item flex items-center space-x-1.5">
+                        <label for="market" class="text-gray-400 font-bold uppercase text-[9px]">Market:</label>
+                        <select id="market" class="bg-brand-dark border border-brand-border text-white rounded px-2 py-1 text-xs shadow-inner">
                             <option value="futures" selected>Futures</option>
                             <option value="spot">Spot</option>
                         </select>
                     </div>
 
-                    <div class="control-item flex items-center space-x-2">
-                        <label for="interval" class="text-gray-500 font-bold uppercase text-[10px]">Time:</label>
-                        <select id="interval" class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 text-xs shadow-inner">
+                    <div class="control-item flex items-center space-x-1.5">
+                        <label for="interval" class="text-gray-400 font-bold uppercase text-[9px]">Time:</label>
+                        <select id="interval" class="bg-brand-dark border border-brand-border text-white rounded px-2 py-1 text-xs shadow-inner">
                             <option value="1s">1s</option>
                             <option value="1m" selected>1m</option>
                             <option value="3m">3m</option>
@@ -80,9 +80,9 @@
                         </select>
                     </div>
 
-                    <div id="pair-container" class="control-item flex items-center space-x-2">
-                        <label for="coin" class="text-gray-500 font-bold uppercase text-[10px]">Pair:</label>
-                        <input type="text" id="coin" value="BTCUSDT" list="coin-list" placeholder="Search..." class="bg-brand-dark border border-brand-border text-white rounded px-3 py-1.5 w-32 uppercase font-bold text-xs shadow-inner transition-colors" />
+                    <div id="pair-container" class="control-item flex items-center space-x-1.5">
+                        <label for="coin" class="text-gray-400 font-bold uppercase text-[9px]">Pair:</label>
+                        <input type="text" id="coin" value="BTCUSDT" list="coin-list" placeholder="Search..." class="bg-brand-dark border border-brand-border text-white rounded px-2 py-1 w-28 uppercase font-bold text-xs shadow-inner transition-colors" />
                         <datalist id="coin-list"></datalist>
                     </div>
                 </div>
@@ -91,7 +91,7 @@
                 currentScript.insertAdjacentHTML('beforebegin', controlHTML);
 
                 const controls = document.querySelector('.controls-container');
-                controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-2 bg-black/40 px-3 py-1.5 rounded-lg border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
+                controls.insertAdjacentHTML('beforeend', `<div id="ws-status" class="ml-auto flex items-center space-x-1.5 bg-black/40 px-2.5 py-1 rounded-md border border-brand-border"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" id="ws-dot"></span><span class="text-[9px] font-black uppercase text-gray-500" id="ws-text">Disconnected</span></div>`);
 
                 async function fetchAndPopulateSymbols() {
                     const marketEl = document.getElementById("market");
@@ -159,7 +159,7 @@
         if (!currentScript) return;
 
         const chartHTML = `
-        <div id="chart-wrapper" class="relative w-full h-[600px] bg-[#05070a] border-y border-brand-border overflow-hidden">
+        <div id="chart-wrapper" class="relative w-full flex-grow bg-[#05070a] border border-brand-border rounded-lg overflow-hidden shadow-xl">
             <canvas id="chart" class="block w-full h-full cursor-crosshair"></canvas>
         </div>
         `;
@@ -504,7 +504,6 @@
                     window.macdAverageValue = macdObj.macd_average !== null ? Number(macdObj.macd_average) : null;
                 }
 
-                // --- ШИНЭЭР НЭМЭХ ХЭСЭГ: Коин солигдох бүрт zoom болон offset-ийг шинээр голлох ---
                 priceScale = 1;
                 priceOffset = 0;
                 offset = 0;
@@ -613,13 +612,11 @@
             coinEl.addEventListener("keydown", (e) => { if (e.key === "Enter") triggerAutoUpdate(); });
         }
 
-        // Товчлуур дарах клик үйл явдлуудыг барих хэсэг
         canvas.addEventListener("click", e => {
             const rect = canvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
-            // MACD товчлуурын координат шалгах (Баруун дээд буланд)
             if (clickY >= window._macdTop && clickY <= window._macdTop + 20) {
                 if (clickX >= window._btnMaxX && clickX <= window._btnMaxX + 16) {
                     window.macdMode = window.macdMode === 'max' ? 'normal' : 'max';
@@ -637,7 +634,6 @@
                 }
             }
 
-            // RSI товчлуурын координат шалгах (Баруун дээд буланд)
             if (clickY >= window._rsiTop && clickY <= window._rsiTop + 20) {
                 if (clickX >= window._btnRsiMaxX && clickX <= window._btnRsiMaxX + 16) {
                     window.rsiMode = window.rsiMode === 'max' ? 'normal' : 'max';
@@ -741,12 +737,10 @@
         fetchCandles();
     });
 
-    // Индикатор бүрийн булангийн товчлууруудыг зурах туслах функц
     function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
         const rightEdge = padding + chartWidth - 10;
         const btnY = topY + 4;
         
-        // Баруун гар талаас эхлээд: Максимайс, Нормал, Минимайс
         const minX = rightEdge - 14;
         const normX = minX - 18;
         const maxX = normX - 18;
@@ -810,7 +804,6 @@
         ctx.stroke();
 
         if (window.macdMode !== 'min') {
-            // Histogram зурах
             data.forEach((d, i) => {
                 const idx = startIdx + i;
                 const x = padding + i * candleWidth;
@@ -822,7 +815,6 @@
                 ctx.fillRect(x + candleWidth * 0.1, Math.min(yZero, yVal), candleWidth * 0.8, Math.abs(yZero - yVal));
             });
 
-            // MACD Line (Цэнхэр шугам)
             ctx.strokeStyle = "#2962ff";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -835,7 +827,6 @@
             });
             ctx.stroke();
 
-            // MACD Average (Ганц утгаар ирсэн бол тухайн түвшинд хэвтээ тасархай шугам татна)
             if (avgValue !== null && avgValue !== undefined) {
                 const yAvg = macdToY(avgValue);
                 ctx.setLineDash([4, 4]);
@@ -848,7 +839,6 @@
                 ctx.setLineDash([]);
             }
 
-            // Signal Line (Улбар шар шугам)
             ctx.strokeStyle = "#ff9800";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -861,7 +851,6 @@
             });
             ctx.stroke();
 
-            // --- MACD Line дээрх харагдаж буй хэсгийн хамгийн өндөр болон нам цэгүүдийг тэмдэглэх ---
             let visibleMacdPoints = [];
             data.forEach((d, i) => {
                 const idx = startIdx + i;
@@ -876,7 +865,6 @@
                 let maxPoint = visibleMacdPoints.reduce((max, p) => p.val > max.val ? p : max, visibleMacdPoints[0]);
                 let minPoint = visibleMacdPoints.reduce((min, p) => p.val < min.val ? p : min, visibleMacdPoints[0]);
 
-                // Хамгийн өндөр цэг (Ногоон өнгөөр)
                 ctx.fillStyle = "#0ecb81";
                 ctx.beginPath();
                 ctx.arc(maxPoint.x, maxPoint.y, 4, 0, Math.PI * 2);
@@ -885,7 +873,6 @@
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Хамгийн нам цэг (Улаан өнгөөр)
                 ctx.fillStyle = "#f6465d";
                 ctx.beginPath();
                 ctx.arc(minPoint.x, minPoint.y, 4, 0, Math.PI * 2);
@@ -937,7 +924,6 @@
         drawWindowButtons(ctx, macdTop, chartWidth, padding, '_btnMaxX', '_btnNormX', '_btnMinX');
     }
 
-    // RSI зурах функц
     function drawRSI(ctx, data, rsiArray, padding, chartWidth, chartHeight, candleWidth, mouseObj, mainChartHeight, macdRatio, rsiRatio) {
         if (!rsiArray || !rsiArray.length) return;
 
