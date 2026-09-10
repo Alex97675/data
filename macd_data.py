@@ -86,37 +86,45 @@ def _build_initial_macd_state(klines, macd_line, macd_signal):
         elif prev >= 0 and curr < 0:
             down_crossings.append(i)
 
-    max_up_peak = 0.0
-    min_down_trough = 0.0
+    max_up_peak_price = 0.0
+    min_down_trough_price = 0.0
 
+    # Өсөлтийн волн доторх хамгийн өндөр MACD утгатай лааны open үнийг олох
     if up_crossings:
         last_up_start = up_crossings[-1]
-        wave_ups = []
+        best_up_idx = None
+        max_val = -float('inf')
         for j in range(last_up_start, len(macd_line)):
             val = float(macd_line.iloc[j])
-            if val < 0:
-                break
-            wave_ups.append(val)
-        if wave_ups:
-            max_up_peak = max(wave_ups)
+            if val > 0 and val > max_val:
+                max_val = val
+                best_up_idx = j
+        
+        if best_up_idx is not None:
+            kline_idx = best_up_idx + offset
+            if 0 <= kline_idx < len(klines):
+                max_up_peak_price = float(klines[kline_idx][1])
 
+    # Уналтын волн доторх хамгийн гүн MACD утгатай лааны open үнийг олох
     if down_crossings:
         last_down_start = down_crossings[-1]
-        wave_downs = []
+        best_down_idx = None
+        min_val = float('inf')
         for j in range(last_down_start, len(macd_line)):
             val = float(macd_line.iloc[j])
-            if val > 0:
-                break
-            wave_downs.append(val)
-        if wave_downs:
-            min_down_trough = min(wave_downs)
+            if val < 0 and val < min_val:
+                min_val = val
+                best_down_idx = j
+        
+        if best_down_idx is not None:
+            kline_idx = best_down_idx + offset
+            if 0 <= kline_idx < len(klines):
+                min_down_trough_price = float(klines[kline_idx][1])
 
-    if max_up_peak != 0.0 and min_down_trough != 0.0:
-        initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
-    else:
-        initial_st["macd_average"] = None
-
-    return initial_st
+    # initial_st буюу буцаах өгөгдөлдөө нэмж өгөх
+    initial_st["peak_price"] = max_up_peak_price
+    initial_st["trough_price"] = min_down_trough_price
+    initial_st["macd_average"] = (max_up_peak + min_down_trough) / 2.0
 
 def calculate_macd_report(klines, symbol="UNKNOWN"):
     global macd_state
