@@ -195,7 +195,7 @@
         let interval = intervalEl ? intervalEl.value : "1m";
         let visibleCount = 80;
         let offset = 0;
-        const minVisible = 20;
+        const minVisible = 10;
         const maxVisible = 330;
         let mouse = { x:null, y:null };
         let dragging = false;
@@ -728,9 +728,19 @@
         
         canvas.addEventListener("wheel", e => {
             e.preventDefault();
-            visibleCount += e.deltaY > 0 ? 10 : -10;
+            
+            // Mouse wheel-ийн хурдаас хамаарч өөрчлөгдөх хэмжээг багасгаж илүү тогтвортой болгох
+            const delta = e.deltaY > 0 ? 15 : -15;
+            visibleCount += delta;
+            
+            // minVisible-аас доош буухгүй, maxVisible-аас хэтрэхгүй байх хатуу хязгаар
             visibleCount = Math.max(minVisible, Math.min(maxVisible, visibleCount));
-            offset = Math.min(offset, window.allData.length - visibleCount);
+            
+            // Offset хэтэрч хоосон зай гархаас сэргийлэх
+            if (window.allData && window.allData.length > 0) {
+                offset = Math.max(0, Math.min(window.allData.length - visibleCount, offset));
+            }
+            
             draw();
         }, { passive:false });
 
