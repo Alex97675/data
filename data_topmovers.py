@@ -1,8 +1,7 @@
 import pandas as pd
 from datetime import datetime
-from macd_data import _build_initial_macd_state
 
-def calculate_top_movers_report(kline_history, macd_state, cache_lock):
+def calculate_top_movers_report(kline_history, cache_lock):
     movers_list = []
 
     with cache_lock:
@@ -13,39 +12,32 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
             closes = [float(x[4]) for x in klines]
             closes_series = pd.Series(closes)
 
+            # MACD болон Signal тооцоолох
             ema12 = closes_series.ewm(span=12, adjust=False).mean()
             ema26 = closes_series.ewm(span=26, adjust=False).mean()
             macd_line = ema12 - ema26
             macd_signal = macd_line.ewm(span=9, adjust=False).mean()
 
-            macd_state[symbol] = _build_initial_macd_state(klines, macd_line, macd_signal)
-            st = macd_state[symbol]
-
             try:
                 close_price = float(klines[-1][4])
                 current_macd = float(macd_line.iloc[-1])
+                current_signal = float(macd_signal.iloc[-1])
             except (IndexError, ValueError):
                 continue
 
-            up_init = st.get("macd_initial_up_price")
-            down_init = st.get("macd_initial_down_price")
-            up_time = st.get("macd_initial_up_time")
-            down_time = st.get("macd_initial_down_time")
-            
-            current_trend = st.get("trend", "None")
+            # Бие дааж хамгийн сүүлийн кросс (тренд эхэлсэн цэг)-ийг олох
+            crossover_idx = 0
+            for i in range(len(klines) - 1, 0, -1):
+                prev_up = macd_line.iloc[i-1] >= macd_signal.iloc[i-1]
+                curr_up = macd_line.iloc[i] >= macd_signal.iloc[i]
+                if prev_up != curr_up:
+                    crossover_idx = i
+                    break
 
-            # Зөвхөн state дээрх trend-ийн дагуу анхны үнэ болон цагийг сонгоно
-            if current_trend == "UP":
-                active_init = up_init
-                active_timestamp = up_time
-            elif current_trend == "DOWN":
-                active_init = down_init
-                active_timestamp = down_time
-            else:
-                active_init = None
-                active_timestamp = None
+            # Кросс хийсэн лааны нээгдсэн үнэ болон цагийг суурь болгон авна
+            active_init = float(klines[crossover_idx][1])
+            active_timestamp = klines[crossover_idx][0]
 
-            # Хэрэв active_init олдохгүй эсвэл 0-ээс бага байвал хамгийн сүүлийн лааны нээгдсэн үнийг авна
             if not active_init or active_init <= 0:
                 active_init = float(klines[-1][1])
                 active_timestamp = klines[-1][0]
