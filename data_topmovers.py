@@ -4,7 +4,6 @@ from datetime import datetime, timezone, timedelta
 def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
     movers_list = []
     
-    # Улаанбаатарын цагийн бүс (UTC+8)
     ub_timezone = timezone(timedelta(hours=8))
 
     with cache_lock:
@@ -15,7 +14,6 @@ def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
             closes = [float(x[4]) for x in klines]
             closes_series = pd.Series(closes)
 
-            # MACD болон Signal тооцоолох
             ema12 = closes_series.ewm(span=12, adjust=False).mean()
             ema26 = closes_series.ewm(span=26, adjust=False).mean()
             macd_line = ema12 - ema26
@@ -24,16 +22,23 @@ def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
             try:
                 close_price = float(klines[-1][4])
                 current_macd = float(macd_line.iloc[-1])
-                current_signal = float(macd_signal.iloc[-1])
             except (IndexError, ValueError):
                 continue
 
-            # Бие дааж хамгийн сүүлийн кросс (тренд эхэлсэн цэг)-ийг олох
+            # Шалгуур: Өсөлттэй бол MACD > 0, уналттай бол MACD < 0 байх ёстой
+            if current_macd > 0:
+                target_sign = 1  # 0-ээс дээш буюу эерэг бүс
+            else:
+                target_sign = -1 # 0-ээс доош буюу сөрөг бүс
+
+            # Хамгийн сүүлийн лаанаас эхлэн ухраад MACD шугам 0-ийг гаталсан (sign өөрчлөгдсөн) цэгийг олох
             crossover_idx = 0
             for i in range(len(klines) - 1, 0, -1):
-                prev_up = macd_line.iloc[i-1] >= macd_signal.iloc[i-1]
-                curr_up = macd_line.iloc[i] >= macd_signal.iloc[i]
-                if prev_up != curr_up:
+                prev_val = macd_line.iloc[i-1]
+                curr_val = macd_line.iloc[i]
+                
+                # Zero-line crossover шалгах (0-ийн шугамыг гаталсан эсэх)
+                if (prev_val < 0 and curr_val >= 0) or (prev_val > 0 and curr_val <= 0):
                     crossover_idx = i
                     break
 
@@ -46,12 +51,9 @@ def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
 
             change_percent = ((close_price - active_init) / active_init) * 100
 
-            # ХАТУУ ШАЛГУУР: 
-            # 1. Өсөлттэй (change_percent > 0) байгаа зоосны MACD шугам хэзээ ч 0-ээс доошоо байж болохгүй.
+            # Хатуу шүүлтүүрүүд
             if change_percent > 0 and current_macd < 0:
                 continue
-            
-            # 2. Уналттай (change_percent < 0) байгаа зоосны MACD шугам хэзээ ч 0-ээс дээш байж болохгүй.
             if change_percent < 0 and current_macd > 0:
                 continue
 
@@ -61,7 +63,6 @@ def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
                     ts = int(active_timestamp)
                     if ts > 10000000000:
                         ts = ts / 1000
-                    # UTC цагийг Улаанбаатарын цаг руу шилжүүлэх
                     dt_utc = datetime.fromtimestamp(ts, tz=timezone.utc)
                     dt_ub = dt_utc.astimezone(ub_timezone)
                     formatted_time = dt_ub.strftime('%Y-%m-%d %H:%M:%S')
