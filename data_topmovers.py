@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 from macd_data import _build_initial_macd_state
 
 def calculate_top_movers_report(kline_history, macd_state, cache_lock):
@@ -6,7 +7,7 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
 
     with cache_lock:
         for symbol, klines in kline_history.items():
-            if not klines or len(klines) < 50:
+            if not klines or len(klines) < 30:
                 continue
             
             closes = [float(x[4]) for x in klines]
@@ -27,6 +28,10 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
 
             up_init = st.get("macd_initial_up_price")
             down_init = st.get("macd_initial_down_price")
+            
+            # Тренд эхэлсэн цагийг авах (timestamp нь millisecond эсвэл second байхаас шалтгаалж хувиргана)
+            up_time = st.get("macd_initial_up_time")
+            down_time = st.get("macd_initial_down_time")
 
             current_macd = macd_line.iloc[-1]
             current_signal = macd_signal.iloc[-1]
@@ -34,21 +39,38 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
 
             if stored_trend == "UP" and current_macd < current_signal:
                 active_init = down_init if down_init and down_init > 0 else float(klines[-1][1])
+                active_timestamp = down_time
             elif stored_trend == "DOWN" and current_macd > current_signal:
                 active_init = up_init if up_init and up_init > 0 else float(klines[-1][1])
+                active_timestamp = up_time
             else:
                 active_init = up_init if stored_trend == "UP" else down_init
+                active_timestamp = up_time if stored_trend == "UP" else down_time
 
             if not active_init or active_init <= 0:
                 active_init = float(klines[-1][1])
+                active_timestamp = klines[-1][0]
 
             change_percent = ((close_price - active_init) / active_init) * 100
+
+            # Timestamp-г уншигдахуйц цагийн формат болгох
+            formatted_time = ""
+            if active_timestamp:
+                try:
+                    # Хэрэв Binance-ийн timestamp миллисекунд бол / 1000 хийнэ
+                    ts = int(active_timestamp)
+                    if ts > 10000000000:
+                        ts = ts / 1000
+                    formatted_time = datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                except Exception:
+                    formatted_time = str(active_timestamp)
 
             movers_list.append({
                 "symbol": symbol,
                 "initial_price": round(active_init, 8),
                 "close_price": round(close_price, 8),
-                "change_percent": round(change_percent, 2)
+                "change_percent": round(change_percent, 2),
+                "start_time": formatted_time
             })
 
     if not movers_list:
