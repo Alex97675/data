@@ -23,6 +23,7 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
 
             try:
                 close_price = float(klines[-1][4])
+                current_macd = float(macd_line.iloc[-1])
             except (IndexError, ValueError):
                 continue
 
@@ -50,6 +51,15 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
                 active_timestamp = klines[-1][0]
 
             change_percent = ((close_price - active_init) / active_init) * 100
+
+            # ХАТУУ ШАЛГУУР: 
+            # 1. Өсөлттэй (change_percent > 0) байгаа зоосны MACD шугам хэзээ ч 0-ээс доошоо байж болохгүй.
+            if change_percent > 0 and current_macd < 0:
+                continue
+            
+            # 2. Уналттай (change_percent < 0) байгаа зоосны MACD шугам хэзээ ч 0-ээс дээш байж болохгүй.
+            if change_percent < 0 and current_macd > 0:
+                continue
 
             # Timestamp-г уншигдахуйц цагийн формат болгох
             formatted_time = ""
