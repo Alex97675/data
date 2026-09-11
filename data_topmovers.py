@@ -1,5 +1,7 @@
-def calculate_gain_lose_report():
-    global kline_history, macd_state
+import pandas as pd
+from macd_data import _build_initial_macd_state
+
+def calculate_top_movers_report(kline_history, macd_state, cache_lock):
     movers_list = []
 
     with cache_lock:
