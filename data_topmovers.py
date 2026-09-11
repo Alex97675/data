@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime
 
-def calculate_top_movers_report(kline_history, macd_state, cache_lock):
+def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
     movers_list = []
 
     with cache_lock:
@@ -34,7 +34,6 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
                     crossover_idx = i
                     break
 
-            # Кросс хийсэн лааны нээгдсэн үнэ болон цагийг суурь болгон авна
             active_init = float(klines[crossover_idx][1])
             active_timestamp = klines[crossover_idx][0]
 
@@ -53,7 +52,6 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
             if change_percent < 0 and current_macd > 0:
                 continue
 
-            # Timestamp-г уншигдахуйц цагийн формат болгох
             formatted_time = ""
             if active_timestamp:
                 try:
