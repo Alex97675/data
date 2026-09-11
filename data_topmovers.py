@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime
 
-def calculate_top_movers_report(kline_history, cache_lock):
+def calculate_top_movers_report(kline_history, macd_state, cache_lock):
     movers_list = []
 
     with cache_lock:
