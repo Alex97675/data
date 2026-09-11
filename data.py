@@ -246,8 +246,17 @@ def get_binchart():
             return f.read()
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="binchart.html файл олдсонгүй!")
+
+@app.get("/price/{symbol}")
+def get_symbol_live_price(symbol: str):
+    symbol = symbol.upper()
+    try:
+        client = UMFutures()
+        ticker = client.ticker_price(symbol=symbol)
+        return {"symbol": symbol, "price": float(ticker["price"])}
+    except Exception as e:
+        return {"error": str(e)}
         
-# ==================== API / DATA ====================
 def get_active_symbols():
     try:
         client = UMFutures()
