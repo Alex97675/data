@@ -28,7 +28,17 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
             up_init = st.get("macd_initial_up_price")
             down_init = st.get("macd_initial_down_price")
 
-            active_init = up_init if st.get("trend") == "UP" else down_init
+            current_macd = macd_line.iloc[-1]
+            current_signal = macd_signal.iloc[-1]
+            stored_trend = st.get("trend", "None")
+
+            if stored_trend == "UP" and current_macd < current_signal:
+                active_init = down_init if down_init and down_init > 0 else float(klines[-1][1])
+            elif stored_trend == "DOWN" and current_macd > current_signal:
+                active_init = up_init if up_init and up_init > 0 else float(klines[-1][1])
+            else:
+                active_init = up_init if stored_trend == "UP" else down_init
+
             if not active_init or active_init <= 0:
                 active_init = float(klines[-1][1])
 
@@ -38,8 +48,7 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
                 "symbol": symbol,
                 "initial_price": round(active_init, 8),
                 "close_price": round(close_price, 8),
-                "change_percent": round(change_percent, 2),
-                "trend": st.get("trend", "None")
+                "change_percent": round(change_percent, 2)
             })
 
     if not movers_list:
