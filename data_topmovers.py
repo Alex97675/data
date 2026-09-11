@@ -83,6 +83,6 @@ def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
     sorted_by_gain = sorted(movers_list, key=lambda x: x["change_percent"], reverse=True)
 
     return {
-        "top_gainers": sorted_by_gain[:10],
-        "top_losers": sorted_by_gain[-10:][::-1]
+        "top_gainers": sorted_by_gain[:500],
+        "top_losers": sorted_by_gain[-500:][::-1]
     }
