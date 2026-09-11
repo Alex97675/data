@@ -1,0 +1,51 @@
+def calculate_gain_lose_report():
+    global kline_history, macd_state
+    movers_list = []
+
+    with cache_lock:
+        for symbol, klines in kline_history.items():
+            if not klines or len(klines) < 50:
+                continue
+            
+            closes = [float(x[4]) for x in klines]
+            closes_series = pd.Series(closes)
+
+            ema12 = closes_series.ewm(span=12, adjust=False).mean()
+            ema26 = closes_series.ewm(span=26, adjust=False).mean()
+            macd_line = ema12 - ema26
+            macd_signal = macd_line.ewm(span=9, adjust=False).mean()
+
+            macd_state[symbol] = _build_initial_macd_state(klines, macd_line, macd_signal)
+            st = macd_state[symbol]
+
+            try:
+                close_price = float(klines[-1][4])
+            except (IndexError, ValueError):
+                continue
+
+            up_init = st.get("macd_initial_up_price")
+            down_init = st.get("macd_initial_down_price")
+
+            active_init = up_init if st.get("trend") == "UP" else down_init
+            if not active_init or active_init <= 0:
+                active_init = float(klines[-1][1])
+
+            change_percent = ((close_price - active_init) / active_init) * 100
+
+            movers_list.append({
+                "symbol": symbol,
+                "initial_price": round(active_init, 8),
+                "close_price": round(close_price, 8),
+                "change_percent": round(change_percent, 2),
+                "trend": st.get("trend", "None")
+            })
+
+    if not movers_list:
+        return {"error": "No valid data calculated yet"}
+
+    sorted_by_gain = sorted(movers_list, key=lambda x: x["change_percent"], reverse=True)
+
+    return {
+        "top_gainers": sorted_by_gain[:10],
+        "top_losers": sorted_by_gain[-10:][::-1]
+    }
