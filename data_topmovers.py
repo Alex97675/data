@@ -28,25 +28,23 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
 
             up_init = st.get("macd_initial_up_price")
             down_init = st.get("macd_initial_down_price")
-            
-            # Тренд эхэлсэн цагийг авах (timestamp нь millisecond эсвэл second байхаас шалтгаалж хувиргана)
             up_time = st.get("macd_initial_up_time")
             down_time = st.get("macd_initial_down_time")
+            
+            current_trend = st.get("trend", "None")
 
-            current_macd = macd_line.iloc[-1]
-            current_signal = macd_signal.iloc[-1]
-            stored_trend = st.get("trend", "None")
-
-            if stored_trend == "UP" and current_macd < current_signal:
-                active_init = down_init if down_init and down_init > 0 else float(klines[-1][1])
-                active_timestamp = down_time
-            elif stored_trend == "DOWN" and current_macd > current_signal:
-                active_init = up_init if up_init and up_init > 0 else float(klines[-1][1])
+            # Зөвхөн state дээрх trend-ийн дагуу анхны үнэ болон цагийг сонгоно
+            if current_trend == "UP":
+                active_init = up_init
                 active_timestamp = up_time
+            elif current_trend == "DOWN":
+                active_init = down_init
+                active_timestamp = down_time
             else:
-                active_init = up_init if stored_trend == "UP" else down_init
-                active_timestamp = up_time if stored_trend == "UP" else down_time
+                active_init = None
+                active_timestamp = None
 
+            # Хэрэв active_init олдохгүй эсвэл 0-ээс бага байвал хамгийн сүүлийн лааны нээгдсэн үнийг авна
             if not active_init or active_init <= 0:
                 active_init = float(klines[-1][1])
                 active_timestamp = klines[-1][0]
@@ -57,7 +55,6 @@ def calculate_top_movers_report(kline_history, macd_state, cache_lock):
             formatted_time = ""
             if active_timestamp:
                 try:
-                    # Хэрэв Binance-ийн timestamp миллисекунд бол / 1000 хийнэ
                     ts = int(active_timestamp)
                     if ts > 10000000000:
                         ts = ts / 1000
