@@ -1,5 +1,21 @@
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# Улаанбаатарын цагийн бүс (UTC+8)
+ub_timezone = timezone(timedelta(hours=8))
+
+formatted_time = ""
+if active_timestamp:
+    try:
+        ts = int(active_timestamp)
+        if ts > 10000000000:
+            ts = ts / 1000
+        # UTC цагийг Улаанбаатарын цаг руу шилжүүлэх
+        dt_utc = datetime.fromtimestamp(ts, tz=timezone.utc)
+        dt_ub = dt_utc.astimezone(ub_timezone)
+        formatted_time = dt_ub.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        formatted_time = str(active_timestamp)
 
 def calculate_top_movers_report(kline_history, cache_lock, macd_state=None):
     movers_list = []
