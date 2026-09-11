@@ -191,8 +191,8 @@ def get_symbol_macd(symbol: str):
 
 @app.get("/top-movers")
 def get_top_movers():
-    global kline_history, macd_state
-    result = calculate_top_movers_report(kline_history, macd_state, cache_lock)
+    global kline_history
+    result = calculate_top_movers_report(kline_history, cache_lock)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return JSONResponse(content=jsonable_encoder(result))
