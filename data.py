@@ -204,17 +204,16 @@ new_movers_lock = threading.Lock()
 
 @app.get("/new-movers/start")
 def start_new_movers():
-    global new_movers_is_running, macd_state
+    global new_movers_is_running
     with new_movers_lock:
         if new_movers_is_running:
             return {"status": "new-movers already running"}
         
-        # Эхлэх үедээ өмнөх хуучин state-ийг цэвэрлээд шинээр эхлүүлнэ
-        with cache_lock:
-            macd_state.clear()
-            
+        # macd_state.clear() гэснийг авч хаялаа. 
+        # Ингэснээр өмнөх кросс хийсэн түүх болон initial_price устахгүй хадгалагдана.
         new_movers_is_running = True
-    return {"status": "new-movers tracker started successfully, state cleared."}
+        
+    return {"status": "new-movers tracker started successfully, state preserved."}
 
 @app.get("/new-movers/stop")
 def stop_new_movers():
