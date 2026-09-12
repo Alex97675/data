@@ -197,6 +197,14 @@ def get_top_movers():
         raise HTTPException(status_code=400, detail=result["error"])
     return JSONResponse(content=jsonable_encoder(result))
 
+@app.get("/new-movers")
+def get_new_movers():
+    global kline_history
+    result = calculate_new_movers_report(kline_history, cache_lock)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return JSONResponse(content=jsonable_encoder(result))
+
 @app.get("/all/{symbol}")
 def get_symbol_all_data(symbol: str):
     symbol = symbol.upper()
