@@ -198,8 +198,40 @@ def get_top_movers():
         raise HTTPException(status_code=400, detail=result["error"])
     return JSONResponse(content=jsonable_encoder(result))
 
+# ==================== NEW MOVERS TRADING / TRACKING STATE ====================
+new_movers_is_running = False
+new_movers_lock = threading.Lock()
+
+@app.get("/new-movers/start")
+def start_new_movers():
+    global new_movers_is_running, macd_state
+    with new_movers_lock:
+        if new_movers_is_running:
+            return {"status": "new-movers already running"}
+        
+        # Эхлэх үедээ өмнөх хуучин state-ийг цэвэрлээд шинээр эхлүүлнэ
+        with cache_lock:
+            macd_state.clear()
+            
+        new_movers_is_running = True
+    return {"status": "new-movers tracker started successfully, state cleared."}
+
+@app.get("/new-movers/stop")
+def stop_new_movers():
+    global new_movers_is_running
+    with new_movers_lock:
+        if not new_movers_is_running:
+            return {"status": "new-movers already stopped"}
+        new_movers_is_running = False
+    return {"status": "new-movers tracker stopped successfully."}
+
 @app.get("/new-movers")
 def get_new_movers():
+    global new_movers_is_running
+    with new_movers_lock:
+        if not new_movers_is_running:
+            return {"error": "New movers tracker is not running. Use /new-movers/start to begin."}
+            
     global kline_history
     result = calculate_new_movers_report(kline_history, cache_lock, macd_state)
     if "error" in result:
