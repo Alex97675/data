@@ -589,7 +589,7 @@
 
                 interval = intervalEl.value;
                 
-                let cleanSymbol = coinEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                let cleanSymbol = coinEl.value.toUpperCase();
                 if (!cleanSymbol) cleanSymbol = "BTCUSDT";
                 symbol = cleanSymbol;
 
