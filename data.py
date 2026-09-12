@@ -201,7 +201,7 @@ def get_top_movers():
 @app.get("/new-movers")
 def get_new_movers():
     global kline_history
-    result = calculate_new_movers_report(kline_history, cache_lock)
+    result = calculate_new_movers_report(kline_history, cache_lock, macd_state)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return JSONResponse(content=jsonable_encoder(result))
