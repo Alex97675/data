@@ -35,7 +35,6 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
 
             state = macd_state[symbol]
             
-            # Хэрэв өмнөх state-д active_sign байхгүй бол хамгаалалт болгож нэмэх
             if "active_sign" not in state:
                 state["active_sign"] = 0
             if "crossover_time" not in state:
@@ -46,16 +45,13 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
             current_sign = 1 if current_macd > 0 else -1
 
             # ЗӨВХӨН ЯГ ОДОО ЦОО ШИНЭЭР 0-ИЙГ ГАТЛАСАН ЭСЭХИЙГ ШАЛГАХ (Cross эхэлсэн мөч)
-            is_new_crossover = False
             if state["active_sign"] == 0 or state["active_sign"] != current_sign:
-                # Өмнөх болон одоогийн MACD хооронд кросс болсон эсэх
                 if (prev_macd < 0 and current_macd >= 0) or (prev_macd > 0 and current_macd <= 0):
-                    is_new_crossover = True
                     state["active_sign"] = current_sign
                     state["crossover_time"] = klines[-2][0]
                     state["initial_price"] = float(klines[-2][1]) # Кросс болсон лааны нээгдсэн үнэ
 
-            # Хэрэв кросс хийгээгүй эсвэл аль хэдийн өмнө нь эхэлчихсэн хуучин хөдөлгөөн байвал шууд алгасна
+            # Хэрэв кросс хийгээгүй эсвэл мэдээлэл байхгүй бол алгасна
             if not state["crossover_time"] or not state["initial_price"]:
                 continue
 
@@ -67,7 +63,7 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
 
             change_percent = ((close_price - active_init) / active_init) * 100
 
-            # Хатуу шүүлтүүр
+            # Хатуу шүүлтүүр (Эерэг бол MACD > 0, Сөрөг бол MACD < 0 байх)
             if change_percent > 0 and current_macd < 0:
                 continue
             if change_percent < 0 and current_macd > 0:
@@ -96,11 +92,10 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
     if not movers_list:
         return {"error": "No new zero-crossover movers found yet"}
 
-    # Эерэг өсөлттэй коинуудыг ялгаж авах (Gainers)
+    # Супер uraldaan: Gainers болон Losers тус бүрээрээ 0-ээс эхэлж uralдаад хамгийн top 10-т шалгарсан нь үлдэх
     gainers_filtered = [m for m in movers_list if m["change_percent"] > 0]
     sorted_by_gain = sorted(gainers_filtered, key=lambda x: x["change_percent"], reverse=True)
 
-    # Сөрөг уналттай коинуудыг ялгаж авах (Losers)
     losers_filtered = [m for m in movers_list if m["change_percent"] < 0]
     sorted_by_loss = sorted(losers_filtered, key=lambda x: x["change_percent"], reverse=False)
 
