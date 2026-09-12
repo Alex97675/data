@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 
-def calculate_newtops_report(kline_history, cache_lock):
+def calculate_new_movers_report(kline_history, cache_lock):
     movers_list = []
     ub_timezone = timezone(timedelta(hours=8))
 
@@ -19,15 +19,14 @@ def calculate_newtops_report(kline_history, cache_lock):
             macd_line = ema12 - ema26
 
             try:
-                # Одоо формирования явцтай байгаа лааг биш, хамгийн сүүлийн БҮТЭН хаагдсан лааг авна (-2)
+                # Зөвхөн бүрэн хаагдсан хамгийн сүүлийн лааны утгыг авна (-2)
                 close_price = float(klines[-2][4])
                 current_macd = float(macd_line.iloc[-2])
             except (IndexError, ValueError):
                 continue
 
-            # MACD 0-ийн шугамыг гаталсан цэгийг олох (Зөвхөн хаагдсан лаануудын prev болон prevprev утгаар)
+            # MACD 0-ийн шугамыг гаталсан цэгийг олох (prevprev болон prev утгаар)
             crossover_idx = None
-            # Хамгийн сүүлийн одоо явж байгаа лааг (-1) алгасаад, аль хэдийн хаагдсан сүүлийн лаанаас эхлэн ухрах
             for i in range(len(klines) - 2, 0, -1):
                 prev_prev_val = macd_line.iloc[i-1] # prevprev
                 prev_val = macd_line.iloc[i]       # prev
