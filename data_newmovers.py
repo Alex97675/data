@@ -25,7 +25,7 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
             except (IndexError, ValueError):
                 continue
 
-            # Коин бүрийн хувьд state санах ойг үүсгэх
+            # Коин бүрийн хувьд state санах ойг шалгах, байхгүй бол үүсгэх
             if symbol not in macd_state:
                 macd_state[symbol] = {
                     "crossover_time": None,
@@ -34,6 +34,15 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
                 }
 
             state = macd_state[symbol]
+            
+            # Хэрэв өмнөх state-д active_sign байхгүй бол хамгаалалт болгож нэмэх
+            if "active_sign" not in state:
+                state["active_sign"] = 0
+            if "crossover_time" not in state:
+                state["crossover_time"] = None
+            if "initial_price" not in state:
+                state["initial_price"] = None
+
             current_sign = 1 if current_macd > 0 else -1
 
             # ЗӨВХӨН ЯГ ОДОО ЦОО ШИНЭЭР 0-ИЙГ ГАТЛАСАН ЭСЭХИЙГ ШАЛГАХ (Cross эхэлсэн мөч)
