@@ -63,12 +63,6 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
 
             change_percent = ((close_price - active_init) / active_init) * 100
 
-            # Хатуу шүүлтүүр (Эерэг бол MACD > 0, Сөрөг бол MACD < 0 байх)
-            if change_percent > 0 and current_macd < 0:
-                continue
-            if change_percent < 0 and current_macd > 0:
-                continue
-
             formatted_time = ""
             if active_timestamp:
                 try:
