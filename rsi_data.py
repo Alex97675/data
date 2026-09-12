@@ -33,19 +33,27 @@ def calculate_rsi_report(klines, symbol="UNKNOWN"):
         }
 
         last_status = "None"
+        last_status_timestamp = None
         for i in range(len(rsi_series) - 1, 0, -1):
             prev_rsi, curr_rsi = rsi_series.iloc[i - 1], rsi_series.iloc[i]
+            # cross болсон индекст харгалзах kline-ийн цагийг авах (жишээ нь klines[i+offset][0])
+            matched_time = klines[i + offset][0] if (i + offset) < len(klines) else None
+            
             if prev_rsi <= 30 and curr_rsi > 30:
                 last_status = "30U"
+                last_status_timestamp = matched_time
                 break
             if prev_rsi >= 30 and curr_rsi < 30:
                 last_status = "30D"
+                last_status_timestamp = matched_time
                 break
             if prev_rsi <= 70 and curr_rsi > 70:
                 last_status = "70U"
+                last_status_timestamp = matched_time
                 break
             if prev_rsi >= 70 and curr_rsi < 70:
                 last_status = "70D"
+                last_status_timestamp = matched_time
                 break
 
         trend_status_history = deque(maxlen=10)
@@ -119,6 +127,7 @@ def calculate_rsi_report(klines, symbol="UNKNOWN"):
             "MAXU": max_u,
             "MIND": min_d,
             "cross_history": {
+                "last_status_time": last_status_timestamp,
                 "s30u": s30u_val,
                 "s30u_prev": price_history["rsi_30_up"][1] if len(price_history["rsi_30_up"]) > 1 else None,
                 "s30d": s30d_val,
