@@ -92,7 +92,7 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
     if not movers_list:
         return {"error": "No new zero-crossover movers found yet"}
 
-    # Супер uraldaan: Gainers болон Losers тус бүрээрээ 0-ээс эхэлж uralдаад хамгийн top 10-т шалгарсан нь үлдэх
+    # Бүрэн жагсаалтыг өсөлт болон уналтаар нь эрэмбэлж буцаах (клиент бот өөрөө эндээс топ 10-аа шүүж авна)
     gainers_filtered = [m for m in movers_list if m["change_percent"] > 0]
     sorted_by_gain = sorted(gainers_filtered, key=lambda x: x["change_percent"], reverse=True)
 
@@ -100,6 +100,6 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
     sorted_by_loss = sorted(losers_filtered, key=lambda x: x["change_percent"], reverse=False)
 
     return {
-        "new_gainers": sorted_by_gain[:10],
-        "new_losers": sorted_by_loss[:10]
+        "new_gainers": sorted_by_gain,
+        "new_losers": sorted_by_loss
     }
