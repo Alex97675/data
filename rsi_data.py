@@ -34,9 +34,9 @@ def calculate_rsi_report(klines, symbol="UNKNOWN"):
 
         last_status = "None"
         last_status_timestamp = None
-        for i in range(len(rsi_series) - 1, 0, -1):
+        # len(rsi_series) - 2 буюу хаагдсан хамгийн сүүлийн лаанаас эхэлж хаана (rsi0-ийг алгасна)
+        for i in range(len(rsi_series) - 2, 0, -1):
             prev_rsi, curr_rsi = rsi_series.iloc[i - 1], rsi_series.iloc[i]
-            # cross болсон индекст харгалзах kline-ийн цагийг авах (жишээ нь klines[i+offset][0])
             matched_time = klines[i + offset][0] if (i + offset) < len(klines) else None
             
             if prev_rsi <= 30 and curr_rsi > 30:
