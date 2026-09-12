@@ -96,9 +96,15 @@ def calculate_new_movers_report(kline_history, cache_lock, macd_state):
     if not movers_list:
         return {"error": "No new zero-crossover movers found yet"}
 
-    sorted_by_gain = sorted(movers_list, key=lambda x: x["change_percent"], reverse=True)
+    # Эерэг өсөлттэй коинуудыг ялгаж авах (Gainers)
+    gainers_filtered = [m for m in movers_list if m["change_percent"] > 0]
+    sorted_by_gain = sorted(gainers_filtered, key=lambda x: x["change_percent"], reverse=True)
+
+    # Сөрөг уналттай коинуудыг ялгаж авах (Losers)
+    losers_filtered = [m for m in movers_list if m["change_percent"] < 0]
+    sorted_by_loss = sorted(losers_filtered, key=lambda x: x["change_percent"], reverse=False)
 
     return {
-        "new_gainers": sorted_by_gain[:50],
-        "new_losers": sorted_by_gain[-50:][::-1]
+        "new_gainers": sorted_by_gain[:10],
+        "new_losers": sorted_by_loss[:10]
     }
