@@ -20,6 +20,7 @@ from data_topmovers import calculate_top_movers_report
 from data_newmovers import calculate_new_movers_report
 from rsi import calculate_rsi_values
 from rsi_laststatus import calculate_last_status
+from rsi_cross import calculate_rsi_cross
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
