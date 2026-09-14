@@ -16,16 +16,18 @@ def calculate_last_status(klines, window=7):
     if len(rsi_series) < 4:
         raise ValueError("At least four RSI values are required")
 
-    rsi1 = float(rsi_series.iloc[-2])
-    rsi2 = float(rsi_series.iloc[-3])
+    # Skip rsi0, then search backward for the latest closed-candle crossing.
+    for index in range(len(rsi_series) - 2, 0, -1):
+        previous_rsi = rsi_series.iloc[index - 1]
+        current_rsi = rsi_series.iloc[index]
 
-    if rsi2 <= 30 and rsi1 > 30:
-        return "30U"
-    if rsi2 >= 30 and rsi1 < 30:
-        return "30D"
-    if rsi2 <= 70 and rsi1 > 70:
-        return "70U"
-    if rsi2 >= 70 and rsi1 < 70:
-        return "70D"
+        if previous_rsi <= 30 and current_rsi > 30:
+            return "30U"
+        if previous_rsi >= 30 and current_rsi < 30:
+            return "30D"
+        if previous_rsi <= 70 and current_rsi > 70:
+            return "70U"
+        if previous_rsi >= 70 and current_rsi < 70:
+            return "70D"
 
     return "None"
