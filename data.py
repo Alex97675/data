@@ -329,6 +329,19 @@ def get_symbol_all_data(symbol: str):
         "ohlc": ohlc_res if "error" not in ohlc_res else None,
         "tops": tops_res
     }))
+
+@app.get("/candles")
+def get_all_candles():
+    with cache_lock:
+        return kline_history
+
+@app.get("/candles/{symbol}")
+def get_symbol_candles(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol in kline_history:
+            return {"symbol": symbol, "candles": kline_history[symbol]}
+    raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
     
 @app.get("/binchart", response_class=HTMLResponse)
 def get_binchart():
