@@ -142,7 +142,7 @@ def get_symbol_rsi_values(symbol: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/rsi_laststatus/{symbol}")
+@app.get("/rsi-laststatus/{symbol}")
 def get_symbol_rsi_laststatus(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
@@ -155,6 +155,23 @@ def get_symbol_rsi_laststatus(symbol: str):
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
             "last_status": last_status
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+@app.get("/rsi-cross/{symbol}")
+def get_symbol_rsi_cross(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        cross_result = calculate_rsi_cross(klines)
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            **cross_result
         }))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
