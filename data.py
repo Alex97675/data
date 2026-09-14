@@ -22,7 +22,7 @@ from rsi import calculate_rsi_values
 from rsi_laststatus import calculate_last_status
 from rsi_cross import calculate_rsi_cross
 from rsi_states import calculate_rsi_states
-from rsi_data import (
+from rsi_new import (
     calculate_rsi_values,
     calculate_rsi_cross,
     calculate_rsi_states,
