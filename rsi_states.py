@@ -3,7 +3,7 @@ from ta.momentum import RSIIndicator
 
 
 def calculate_rsi_states(klines, window=7):
-    """Return current RSI cross states and the latest four closed-candle crosses."""
+    """Return cross states and min/max open values for the latest RSI crosses."""
     if not klines:
         raise ValueError("Kline data is empty")
 
@@ -27,31 +27,55 @@ def calculate_rsi_states(klines, window=7):
         "70_down": "DOWN" if (rsi2 >= 70 and rsi1 < 70) else "--",
     }
 
-    last_4_crosses = []
-    for index in range(len(rsi_series) - 2, 0, -1):
+    offset = len(klines) - len(rsi_series)
+    price_history = {
+        "rsi_30_up": [],
+        "rsi_30_down": [],
+        "rsi_70_up": [],
+        "rsi_70_down": [],
+    }
+    last_status_time = None
+
+    # Use the same four-candle open window as rsi_data.py/ohlc_data.py.
+    for index in range(len(rsi_series) - 2, 2, -1):
         previous_rsi = float(rsi_series.iloc[index - 1])
         current_rsi = float(rsi_series.iloc[index])
-        status = None
+        window_klines = klines[index + offset - 3 : index + offset + 1]
+        opens = [float(kline[1]) for kline in window_klines]
+        if len(opens) < 4:
+            continue
 
+        matched_time = klines[index + offset][0]
         if previous_rsi <= 30 and current_rsi > 30:
-            status = "30U"
+            price_history["rsi_30_up"].append(min(opens))
+            if last_status_time is None:
+                last_status_time = matched_time
         elif previous_rsi >= 30 and current_rsi < 30:
-            status = "30D"
+            price_history["rsi_30_down"].append(max(opens))
+            if last_status_time is None:
+                last_status_time = matched_time
         elif previous_rsi <= 70 and current_rsi > 70:
-            status = "70U"
+            price_history["rsi_70_up"].append(min(opens))
+            if last_status_time is None:
+                last_status_time = matched_time
         elif previous_rsi >= 70 and current_rsi < 70:
-            status = "70D"
+            price_history["rsi_70_down"].append(max(opens))
+            if last_status_time is None:
+                last_status_time = matched_time
 
-        if status:
-            last_4_crosses.append({
-                "status": status,
-                "rsi_value": current_rsi,
-                "previous_rsi": previous_rsi,
-            })
-            if len(last_4_crosses) == 4:
-                break
+    cross_history = {
+        "last_status_time": last_status_time,
+        "s30u": price_history["rsi_30_up"][0] if price_history["rsi_30_up"] else None,
+        "s30u_prev": price_history["rsi_30_up"][1] if len(price_history["rsi_30_up"]) > 1 else None,
+        "s30d": price_history["rsi_30_down"][0] if price_history["rsi_30_down"] else None,
+        "s30d_prev": price_history["rsi_30_down"][1] if len(price_history["rsi_30_down"]) > 1 else None,
+        "s70u": price_history["rsi_70_up"][0] if price_history["rsi_70_up"] else None,
+        "s70u_prev": price_history["rsi_70_up"][1] if len(price_history["rsi_70_up"]) > 1 else None,
+        "s70d": price_history["rsi_70_down"][0] if price_history["rsi_70_down"] else None,
+        "s70d_prev": price_history["rsi_70_down"][1] if len(price_history["rsi_70_down"]) > 1 else None,
+    }
 
     return {
         "cross_now": cross_now,
-        "last_4_crosses": last_4_crosses,
+        "cross_history": cross_history,
     }
