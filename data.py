@@ -30,6 +30,7 @@ from rsi_new import (
     calculate_rsi_trend,
     calculate_rsi_average
 )
+from arrays import calculate_rsi_array, calculate_macd_arrays
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -228,6 +229,25 @@ def get_symbol_rsi_new(symbol: str):
             **rsi_laststatus,
             **rsi_trend,
             **rsi_average
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/arrays/{symbol}")
+def get_symbol_arrays(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        rsi_array = calculate_rsi_array(klines)
+        macd_arrays = calculate_macd_arrays(klines)
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            "rsi_array": rsi_array,
+            **macd_arrays
         }))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
