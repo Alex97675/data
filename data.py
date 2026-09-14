@@ -276,7 +276,27 @@ def get_symbol_all_data(symbol: str):
             raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
         klines = kline_history[symbol]
 
-    rsi_res = calculate_rsi_report(klines, symbol)
+    # Шинэчлэгдсэн RSI модулиудыг нэгтгэж дуудах
+    try:
+        rsi_vals = calculate_rsi_values(klines)
+        rsi_crs = calculate_rsi_cross(klines)
+        rsi_sts = calculate_rsi_states(klines)
+        rsi_lst = calculate_rsi_laststatus(klines)
+        rsi_trd = calculate_rsi_trend(klines)
+        rsi_avg = calculate_rsi_average(klines)
+        
+        rsi_res = {
+            "symbol": symbol,
+            **rsi_vals,
+            **rsi_crs,
+            **rsi_sts,
+            **rsi_lst,
+            **rsi_trd,
+            **rsi_avg
+        }
+    except Exception as e:
+        rsi_res = {"error": str(e)}
+
     macd_res = calculate_macd_report(klines, symbol)
     ema13_res = calculate_ema_report(klines, symbol, span=13)
     ema50_res = calculate_ema_report(klines, symbol, span=50)
