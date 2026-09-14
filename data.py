@@ -135,7 +135,7 @@ def get_selected_symbols():
 # ==================== CANDLE & INDICATOR ENDPOINTS ====================
 
 @app.get("/rsi/{symbol}")
-def get_symbol_rsi_new(symbol: str):
+def get_symbol_rsi(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
         if symbol not in kline_history:
@@ -143,22 +143,24 @@ def get_symbol_rsi_new(symbol: str):
         klines = kline_history[symbol]
 
     try:
-        rsi_values = calculate_rsi_values(klines)
-        rsi_cross = calculate_rsi_cross(klines)
-        rsi_states = calculate_rsi_states(klines)
-        rsi_laststatus = calculate_rsi_laststatus(klines)
-        rsi_trend = calculate_rsi_trend(klines)
-        rsi_average = calculate_rsi_average(klines)
+        # Графикт зурах RSI array болон бусад индикаторуудыг хамт оруулах
+        rsi_array = calculate_rsi_array(klines) # arrays.py эсвэл rsi.py-с импортолсон байх ёстой
+        rsi_vals = calculate_rsi_values(klines)
+        rsi_crs = calculate_rsi_cross(klines)
+        rsi_sts = calculate_rsi_states(klines)
+        rsi_lst = calculate_rsi_laststatus(klines)
+        rsi_trd = calculate_rsi_trend(klines)
+        rsi_avg = calculate_rsi_average(klines)
 
-        # Бүх үр дүнг нэгтгэж буцаах
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
-            **rsi_values,
-            **rsi_cross,
-            **rsi_states,
-            **rsi_laststatus,
-            **rsi_trend,
-            **rsi_average
+            "rsi_array": rsi_array, # Фронтендийн хүлээж байгаа массив
+            **rsi_vals,
+            **rsi_crs,
+            **rsi_sts,
+            **rsi_lst,
+            **rsi_trd,
+            **rsi_avg
         }))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
