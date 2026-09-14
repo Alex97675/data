@@ -22,6 +22,14 @@ from rsi import calculate_rsi_values
 from rsi_laststatus import calculate_last_status
 from rsi_cross import calculate_rsi_cross
 from rsi_states import calculate_rsi_states
+from rsi_data import (
+    calculate_rsi_values,
+    calculate_rsi_cross,
+    calculate_rsi_states,
+    calculate_rsi_laststatus,
+    calculate_rsi_trend,
+    calculate_rsi_average
+)
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -191,6 +199,35 @@ def get_symbol_rsi_states(symbol: str):
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
             **states_result
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/rsi-new/{symbol}")
+def get_symbol_rsi_new(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        rsi_values = calculate_rsi_values(klines)
+        rsi_cross = calculate_rsi_cross(klines)
+        rsi_states = calculate_rsi_states(klines)
+        rsi_laststatus = calculate_rsi_laststatus(klines)
+        rsi_trend = calculate_rsi_trend(klines)
+        rsi_average = calculate_rsi_average(klines)
+
+        # Бүх үр дүнг нэгтгэж буцаах
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            **rsi_values,
+            **rsi_cross,
+            **rsi_states,
+            **rsi_laststatus,
+            **rsi_trend,
+            **rsi_average
         }))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
