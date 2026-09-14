@@ -1,7 +1,19 @@
 from collections import deque
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 from ta.momentum import RSIIndicator
+
+
+def _format_time_gmt8(timestamp):
+    """Convert a millisecond timestamp to a readable GMT+8 time."""
+    if timestamp is None:
+        return None
+
+    gmt8 = timezone(timedelta(hours=8))
+    return datetime.fromtimestamp(float(timestamp) / 1000.0, tz=gmt8).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 # ==================== RSI VALUES ====================
 def calculate_rsi_values(klines, window=7):
@@ -94,7 +106,7 @@ def calculate_rsi_states(klines, window=7):
         if len(opens) < 4:
             continue
 
-        matched_time = klines[index + offset][0]
+        matched_time = _format_time_gmt8(klines[index + offset][0])
         if previous_rsi <= 30 and current_rsi > 30:
             price_history["rsi_30_up"].append(min(opens))
             time_history["rsi_30_up"].append(matched_time)
@@ -144,7 +156,7 @@ def calculate_rsi_laststatus(klines, window=7):
     for index in range(len(rsi_series) - 2, 0, -1):
         previous_rsi = rsi_series.iloc[index - 1]
         current_rsi = rsi_series.iloc[index]
-        status_time = klines[index + offset][0]
+        status_time = _format_time_gmt8(klines[index + offset][0])
 
         if previous_rsi <= 30 and current_rsi > 30:
             return {"last_status": "30U", "last_status_time": status_time}
