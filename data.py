@@ -19,6 +19,7 @@ from macd_data import calculate_macd_report, _build_initial_macd_state, macd_sta
 from data_topmovers import calculate_top_movers_report
 from data_newmovers import calculate_new_movers_report
 from rsi import calculate_rsi_values
+from rsi_laststatus import calculate_last_status
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
