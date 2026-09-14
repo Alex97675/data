@@ -134,7 +134,7 @@ def get_selected_symbols():
     
 # ==================== CANDLE & INDICATOR ENDPOINTS ====================
 
-@app.get("/rsi_new/{symbol}")
+@app.get("/rsi/{symbol}")
 def get_symbol_rsi_new(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
@@ -191,19 +191,6 @@ def get_symbol_ohlc(symbol: str):
         klines = kline_history[symbol]
 
     result = calculate_ohlc_tracker_report(klines, symbol)
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return JSONResponse(content=jsonable_encoder(result))
-
-@app.get("/rsi/{symbol}")
-def get_symbol_rsi(symbol: str):
-    symbol = symbol.upper()
-    with cache_lock:
-        if symbol not in kline_history:
-            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
-        klines = kline_history[symbol]
-
-    result = calculate_rsi_report(klines, symbol)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return JSONResponse(content=jsonable_encoder(result))
