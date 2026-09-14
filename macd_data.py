@@ -209,24 +209,20 @@ def calculate_macd_report(klines, symbol="UNKNOWN"):
             "signal_array": [float(val) for val in macd_signal],
             "histogram_array": [float(val) for val in macd_hist],
             
-            "line": {
-                "0": f"{macd_line.iloc[-1]:.8f}",
-                "-1": f"{macd_line.iloc[-2]:.8f}",
-                "-2": f"{macd_line.iloc[-3]:.8f}",
-                "-3": f"{macd_line.iloc[-4]:.8f}"
-            },
-            "signal": {
-                "0": f"{macd_signal.iloc[-1]:.8f}",
-                "-1": f"{macd_signal.iloc[-2]:.8f}",
-                "-2": f"{macd_signal.iloc[-3]:.8f}",
-                "-3": f"{macd_signal.iloc[-4]:.8f}"
-            },
-            "hist": {
-                "0": f"{macd_hist.iloc[-1]:.8f}",
-                "-1": f"{macd_hist.iloc[-2]:.8f}",
-                "-2": f"{macd_hist.iloc[-3]:.8f}",
-                "-3": f"{macd_hist.iloc[-4]:.8f}"
-            },
+            "macd_line_0": f"{macd_line.iloc[-1]:.8f}",
+            "macd_line_1": f"{macd_line.iloc[-2]:.8f}",
+            "macd_line_2": f"{macd_line.iloc[-3]:.8f}",
+            "macd_line_3": f"{macd_line.iloc[-4]:.8f}",
+            
+            "macd_signal_0": f"{macd_signal.iloc[-1]:.8f}",
+            "macd_signal_1": f"{macd_signal.iloc[-2]:.8f}",
+            "macd_signal_2": f"{macd_signal.iloc[-3]:.8f}",
+            "macd_signal_3": f"{macd_signal.iloc[-4]:.8f}",
+            
+            "macd_hist_0": f"{macd_hist.iloc[-1]:.8f}",
+            "macd_hist_1": f"{macd_hist.iloc[-2]:.8f}",
+            "macd_hist_2": f"{macd_hist.iloc[-3]:.8f}",
+            "macd_hist_3": f"{macd_hist.iloc[-4]:.8f}",
             "macd_lineUp0": bool(macd_line_up_0),
             "macd_linedown0": bool(macd_line_down_0),
             
