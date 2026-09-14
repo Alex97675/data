@@ -21,6 +21,7 @@ from data_newmovers import calculate_new_movers_report
 from rsi import calculate_rsi_values
 from rsi_laststatus import calculate_last_status
 from rsi_cross import calculate_rsi_cross
+from rsi_states import calculate_rsi_states
 
 # ==================== CONFIG ====================
 MAX_KLINES = 300  # Лааны түүхэн датаны хязгаар
@@ -173,6 +174,23 @@ def get_symbol_rsi_cross(symbol: str):
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
             **cross_result
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/rsi-states/{symbol}")
+def get_symbol_rsi_states(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        states_result = calculate_rsi_states(klines)
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            **states_result
         }))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
