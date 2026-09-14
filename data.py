@@ -140,6 +140,23 @@ def get_symbol_rsi_values(symbol: str):
         return JSONResponse(content=jsonable_encoder({"symbol": symbol, **result}))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/rsi_laststatus/{symbol}")
+def get_symbol_rsi_laststatus(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        last_status = calculate_last_status(klines)
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            "last_status": last_status
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
         
 @app.get("/candles")
 def get_all_candles():
