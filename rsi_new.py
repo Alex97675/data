@@ -181,7 +181,8 @@ def calculate_rsi_trend(klines, window=7):
         raise ValueError("At least four RSI values are required")
 
     trend_status_history = deque(maxlen=10)
-    for index in range(len(rsi_series) - 1, 0, -1):
+    # Skip rsi0 because it is the live candle; start from the latest closed candle.
+    for index in range(len(rsi_series) - 2, 0, -1):
         previous_rsi = rsi_series.iloc[index - 1]
         current_rsi = rsi_series.iloc[index]
         status = None
