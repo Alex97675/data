@@ -71,17 +71,6 @@ def calculate_rsi_states(klines, window=7):
     if len(rsi_series) < 5:
         raise ValueError("At least five RSI values are required")
 
-    # rsi0 is the live candle; use only rsi2 and rsi1 for current states.
-    rsi1 = float(rsi_series.iloc[-2])
-    rsi2 = float(rsi_series.iloc[-3])
-
-    cross_now = {
-        "30_up": "UP" if (rsi2 <= 30 and rsi1 > 30) else "--",
-        "70_up": "UP" if (rsi2 <= 70 and rsi1 > 70) else "--",
-        "30_down": "DOWN" if (rsi2 >= 30 and rsi1 < 30) else "--",
-        "70_down": "DOWN" if (rsi2 >= 70 and rsi1 < 70) else "--",
-    }
-
     offset = len(klines) - len(rsi_series)
     price_history = {
         "rsi_30_up": [],
@@ -89,7 +78,12 @@ def calculate_rsi_states(klines, window=7):
         "rsi_70_up": [],
         "rsi_70_down": [],
     }
-    last_status_time = None
+    time_history = {
+        "rsi_30_up": [],
+        "rsi_30_down": [],
+        "rsi_70_up": [],
+        "rsi_70_down": [],
+    }
 
     # Use the same four-candle open window as rsi_data.py/ohlc_data.py.
     for index in range(len(rsi_series) - 2, 2, -1):
@@ -103,37 +97,37 @@ def calculate_rsi_states(klines, window=7):
         matched_time = klines[index + offset][0]
         if previous_rsi <= 30 and current_rsi > 30:
             price_history["rsi_30_up"].append(min(opens))
-            if last_status_time is None:
-                last_status_time = matched_time
+            time_history["rsi_30_up"].append(matched_time)
         elif previous_rsi >= 30 and current_rsi < 30:
             price_history["rsi_30_down"].append(max(opens))
-            if last_status_time is None:
-                last_status_time = matched_time
+            time_history["rsi_30_down"].append(matched_time)
         elif previous_rsi <= 70 and current_rsi > 70:
             price_history["rsi_70_up"].append(min(opens))
-            if last_status_time is None:
-                last_status_time = matched_time
+            time_history["rsi_70_up"].append(matched_time)
         elif previous_rsi >= 70 and current_rsi < 70:
             price_history["rsi_70_down"].append(max(opens))
-            if last_status_time is None:
-                last_status_time = matched_time
+            time_history["rsi_70_down"].append(matched_time)
 
     cross_history = {
-        "last_status_time": last_status_time,
         "s30u": price_history["rsi_30_up"][0] if price_history["rsi_30_up"] else None,
+        "s30u_time": time_history["rsi_30_up"][0] if time_history["rsi_30_up"] else None,
         "s30u_prev": price_history["rsi_30_up"][1] if len(price_history["rsi_30_up"]) > 1 else None,
+        "s30u_prev_time": time_history["rsi_30_up"][1] if len(time_history["rsi_30_up"]) > 1 else None,
         "s30d": price_history["rsi_30_down"][0] if price_history["rsi_30_down"] else None,
+        "s30d_time": time_history["rsi_30_down"][0] if time_history["rsi_30_down"] else None,
         "s30d_prev": price_history["rsi_30_down"][1] if len(price_history["rsi_30_down"]) > 1 else None,
+        "s30d_prev_time": time_history["rsi_30_down"][1] if len(time_history["rsi_30_down"]) > 1 else None,
         "s70u": price_history["rsi_70_up"][0] if price_history["rsi_70_up"] else None,
+        "s70u_time": time_history["rsi_70_up"][0] if time_history["rsi_70_up"] else None,
         "s70u_prev": price_history["rsi_70_up"][1] if len(price_history["rsi_70_up"]) > 1 else None,
+        "s70u_prev_time": time_history["rsi_70_up"][1] if len(time_history["rsi_70_up"]) > 1 else None,
         "s70d": price_history["rsi_70_down"][0] if price_history["rsi_70_down"] else None,
+        "s70d_time": time_history["rsi_70_down"][0] if time_history["rsi_70_down"] else None,
         "s70d_prev": price_history["rsi_70_down"][1] if len(price_history["rsi_70_down"]) > 1 else None,
+        "s70d_prev_time": time_history["rsi_70_down"][1] if len(time_history["rsi_70_down"]) > 1 else None,
     }
 
-    return {
-        "cross_now": cross_now,
-        "cross_history": cross_history,
-    }
+    return {"cross_history": cross_history}
 
 # ==================== RSI LAST STATUS ====================
 def calculate_rsi_laststatus(klines, window=7):
@@ -254,13 +248,8 @@ def calculate_rsi_average(klines, window=7):
     s70u = price_history["rsi_70_up"][0] if price_history["rsi_70_up"] else None
     s30d = price_history["rsi_30_down"][0] if price_history["rsi_30_down"] else None
 
-    valid_up = [value for value in [s30u, s70u] if value is not None]
-    valid_down = [value for value in [s30d, s70d] if value is not None]
-
     return {
         "average_status": (s30u + s70d) / 2.0 if s30u and s70d else None,
-        "MAXU": max(valid_up) if valid_up else None,
-        "MIND": min(valid_down) if valid_down else None,
     }
 
 __all__ = [
