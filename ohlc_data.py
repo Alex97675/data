@@ -64,7 +64,25 @@ def calculate_ohlc_tracker_report(klines, symbol="UNKNOWN"):
 
         return {
             "symbol": symbol,
-            "candles": ohlc_dict,
+            "candle_open_0": float(candles_data.get("0", {}).get("open", 0)),
+            "candle_high_0": float(candles_data.get("0", {}).get("high", 0)),
+            "candle_low_0": float(candles_data.get("0", {}).get("low", 0)),
+            "candle_close_0": float(candles_data.get("0", {}).get("close", 0)),
+
+            "candle_open_1": float(candles_data.get("-1", {}).get("open", 0)),
+            "candle_high_1": float(candles_data.get("-1", {}).get("high", 0)),
+            "candle_low_1": float(candles_data.get("-1", {}).get("low", 0)),
+            "candle_close_1": float(candles_data.get("-1", {}).get("close", 0)),
+
+            "candle_open_2": float(candles_data.get("-2", {}).get("open", 0)),
+            "candle_high_2": float(candles_data.get("-2", {}).get("high", 0)),
+            "candle_low_2": float(candles_data.get("-2", {}).get("low", 0)),
+            "candle_close_2": float(candles_data.get("-2", {}).get("close", 0)),
+
+            "candle_open_3": float(candles_data.get("-3", {}).get("open", 0)),
+            "candle_high_3": float(candles_data.get("-3", {}).get("high", 0)),
+            "candle_low_3": float(candles_data.get("-3", {}).get("low", 0)),
+            "candle_close_3": float(candles_data.get("-3", {}).get("close", 0)),
             "min_open": min_open,
             "max_open": max_open,
             "min_close": min_close,
