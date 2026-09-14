@@ -203,7 +203,7 @@ def get_symbol_rsi_states(symbol: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/rsi-new/{symbol}")
+@app.get("/rsi_new/{symbol}")
 def get_symbol_rsi_new(symbol: str):
     symbol = symbol.upper()
     with cache_lock:
