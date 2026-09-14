@@ -125,6 +125,21 @@ def get_selected_symbols():
         return {"selected_symbols": list(selected_symbols)}
     
 # ==================== CANDLE & INDICATOR ENDPOINTS ====================
+
+@app.get("/rsi-values/{symbol}")
+def get_symbol_rsi_values(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        result = calculate_rsi_values(klines)
+        return JSONResponse(content=jsonable_encoder({"symbol": symbol, **result}))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
 @app.get("/candles")
 def get_all_candles():
     with cache_lock:
