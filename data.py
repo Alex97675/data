@@ -27,7 +27,6 @@ from rsi import (
 )
 from mac import (
     calculate_macd_values,
-    calculate_macd_arrays,
     calculate_macd_cross,
     calculate_macd_state,
     calculate_macd_trend,
