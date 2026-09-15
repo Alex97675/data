@@ -717,18 +717,18 @@
             const delta = e.deltaY > 0 ? 15 : -15;
             visibleCount += delta;
             
-            visibleCount = Math.max(minVisible, Math.min(maxVisible, visibleCount));
+            visibleCount = Math.max(minVisible, Math.max(minVisible, Math.min(maxVisible, visibleCount)));
             
             if (window.allData && window.allData.length > 0) {
                 offset = Math.max(0, Math.min(window.allData.length - visibleCount, offset));
             }
             
             draw();
-        }, { passive:false });
+        }, { passive: false });
 
-    }); // <-- Энд DOMContentLoaded-ийн хаалт зөв хаагдана
+    }); // <-- Closes DOMContentLoaded properly
 
-    fetchCandles(); // Энэ нь DOMContentLoaded-ийн гадна эсвэл дотор зөв байрлана
+    fetchCandles(); // Called cleanly outside or inside as intended
 
     function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
         const rightEdge = padding + chartWidth - 10;
