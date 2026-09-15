@@ -727,9 +727,8 @@
             draw();
         }, { passive: false });
 
+        fetchCandles();
     }); // <-- Closes DOMContentLoaded properly
-
-    fetchCandles(); // Called cleanly outside or inside as intended
 
     function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
         const rightEdge = padding + chartWidth - 10;
