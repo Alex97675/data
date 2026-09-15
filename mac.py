@@ -49,17 +49,6 @@ def calculate_macd_values(klines):
         "previous_4_macd_histogram": f"{macd_histogram.iloc[-5]:.8f}",
     }
 
-
-# ==================== MACD ARRAYS ====================
-def calculate_macd_arrays(klines):
-    macd_line, macd_signal, macd_histogram = _calculate_macd_series(klines)
-    return {
-        "macd_line_array": [float(value) for value in macd_line.tolist()],
-        "macd_signal_array": [float(value) for value in macd_signal.tolist()],
-        "macd_histogram_array": [float(value) for value in macd_histogram.tolist()],
-    }
-
-
 # ==================== MACD CROSS ====================
 def calculate_macd_cross(klines):
     macd_line, macd_signal, _ = _calculate_macd_series(klines)
