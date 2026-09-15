@@ -568,7 +568,8 @@
                     console.error("[Server Sync Error]:", err);
                 }
             }, 2000);
-        
+        }
+
         let updateTimer = null;
         const triggerAutoUpdate = () => {
             if (updateTimer) clearTimeout(updateTimer);
