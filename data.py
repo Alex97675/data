@@ -153,8 +153,6 @@ def get_symbol_rsi(symbol: str):
         klines = kline_history[symbol]
 
     try:
-        # Графикт зурах RSI array болон бусад индикаторуудыг хамт оруулах
-        rsi_array = calculate_rsi_array(klines) # arrays.py эсвэл rsi.py-с импортолсон байх ёстой
         rsi_vals = calculate_rsi_values(klines)
         rsi_crs = calculate_rsi_cross(klines)
         rsi_sts = calculate_rsi_states(klines)
@@ -164,7 +162,6 @@ def get_symbol_rsi(symbol: str):
 
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
-            "rsi_array": rsi_array, # Фронтендийн хүлээж байгаа массив
             **rsi_vals,
             **rsi_crs,
             **rsi_sts,
@@ -244,7 +241,6 @@ def get_symbol_macd_new(symbol: str):
     try:
         # Бүх шинэ MACD функцүүдийг нэгтгэж дуудах
         macd_vals = calculate_macd_values(klines)
-        macd_arrs = calculate_macd_arrays(klines)
         macd_crs = calculate_macd_cross(klines)
         macd_sts = calculate_macd_state(klines)
         macd_trd = calculate_macd_trend(klines)
