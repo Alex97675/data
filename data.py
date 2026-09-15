@@ -25,6 +25,17 @@ from rsi import (
     calculate_rsi_trend,
     calculate_rsi_average
 )
+from mac import (
+    calculate_macd_values,
+    calculate_macd_arrays,
+    calculate_macd_cross,
+    calculate_macd_state,
+    calculate_macd_trend,
+    calculate_macd_average,
+    calculate_macd_limits,
+    calculate_macd_initial_crosses,
+    calculate_macd_peaks
+)
 from arrays import calculate_rsi_array, calculate_macd_arrays
 
 # ==================== CONFIG ====================
@@ -223,6 +234,41 @@ def get_symbol_macd(symbol: str):
         raise HTTPException(status_code=400, detail=result["error"])
     return result
 
+@app.get("/macd2/{symbol}")
+def get_symbol_macd_new(symbol: str):
+    symbol = symbol.upper()
+    with cache_lock:
+        if symbol not in kline_history:
+            raise HTTPException(status_code=404, detail="Symbol not found or not loaded yet")
+        klines = kline_history[symbol]
+
+    try:
+        # Бүх шинэ MACD функцүүдийг нэгтгэж дуудах
+        macd_vals = calculate_macd_values(klines)
+        macd_arrs = calculate_macd_arrays(klines)
+        macd_crs = calculate_macd_cross(klines)
+        macd_sts = calculate_macd_state(klines)
+        macd_trd = calculate_macd_trend(klines)
+        macd_avg = calculate_macd_average(klines)
+        macd_lmt = calculate_macd_limits(klines)
+        macd_init = calculate_macd_initial_crosses(klines)
+        macd_pks = calculate_macd_peaks(klines)
+
+        return JSONResponse(content=jsonable_encoder({
+            "symbol": symbol,
+            **macd_vals,
+            **macd_arrs,
+            **macd_crs,
+            **macd_sts,
+            **macd_trd,
+            **macd_avg,
+            **macd_lmt,
+            **macd_init,
+            **macd_pks
+        }))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
 @app.get("/top-movers")
 def get_top_movers():
     global kline_history
