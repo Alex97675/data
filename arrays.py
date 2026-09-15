@@ -29,11 +29,10 @@ def calculate_macd_arrays(klines, fast=12, slow=26, signal=9):
     histogram_series = macd_series - signal_series
 
     return {
-        "macd_array": [float(value) for value in macd_series.tolist()],
-        "signal_array": [float(value) for value in signal_series.tolist()],
-        "histogram_array": [float(value) for value in histogram_series.tolist()],
+        "macd_line_array": [float(value) for value in macd_series.tolist()],
+        "macd_signal_array": [float(value) for value in signal_series.tolist()],
+        "macd_histogram_array": [float(value) for value in histogram_series.tolist()],
     }
-
 
 __all__ = [
     "calculate_rsi_array",
