@@ -487,10 +487,10 @@
                 }
         
                 // MACD массивууд болон Average утга
-                if (arraysData.macd_line_array) {
-                    window.macdArrayData = arraysData.macd_line_array;
-                    window.signalArrayData = arraysData.macd_signal_array;
-                    window.histArrayData = arraysData.macd_histogram_array;
+                if (arraysData.macd_array) {
+                    window.macdArrayData = arraysData.macd_array;
+                    window.signalArrayData = arraysData.signal_array;
+                    window.histArrayData = arraysData.histogram_array;
                     window.macdAverageValue = arraysData.macd_average !== null ? Number(arraysData.macd_average) : null;
                 }
         
