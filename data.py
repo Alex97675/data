@@ -252,7 +252,6 @@ def get_symbol_macd_new(symbol: str):
         return JSONResponse(content=jsonable_encoder({
             "symbol": symbol,
             **macd_vals,
-            **macd_arrs,
             **macd_crs,
             **macd_sts,
             **macd_trd,
