@@ -714,14 +714,11 @@
         canvas.addEventListener("wheel", e => {
             e.preventDefault();
             
-            // Mouse wheel-ийн хурдаас хамаарч өөрчлөгдөх хэмжээг багасгаж илүү тогтвортой болгох
             const delta = e.deltaY > 0 ? 15 : -15;
             visibleCount += delta;
             
-            // minVisible-аас доош буухгүй, maxVisible-аас хэтрэхгүй байх хатуу хязгаар
             visibleCount = Math.max(minVisible, Math.min(maxVisible, visibleCount));
             
-            // Offset хэтэрч хоосон зай гархаас сэргийлэх
             if (window.allData && window.allData.length > 0) {
                 offset = Math.max(0, Math.min(window.allData.length - visibleCount, offset));
             }
@@ -729,8 +726,9 @@
             draw();
         }, { passive:false });
 
-        fetchCandles();
-    });
+    }); // <-- Энд DOMContentLoaded-ийн хаалт зөв хаагдана
+
+    fetchCandles(); // Энэ нь DOMContentLoaded-ийн гадна эсвэл дотор зөв байрлана
 
     function drawWindowButtons(ctx, topY, chartWidth, padding, maxBtnRef, normBtnRef, minBtnRef) {
         const rightEdge = padding + chartWidth - 10;
