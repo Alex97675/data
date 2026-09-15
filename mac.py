@@ -49,6 +49,17 @@ def calculate_macd_values(klines):
         "previous_4_macd_histogram": f"{macd_histogram.iloc[-5]:.8f}",
     }
 
+
+# ==================== MACD ARRAYS ====================
+def calculate_macd_arrays(klines):
+    macd_line, macd_signal, macd_histogram = _calculate_macd_series(klines)
+    return {
+        "macd_line_array": [float(value) for value in macd_line.tolist()],
+        "macd_signal_array": [float(value) for value in macd_signal.tolist()],
+        "macd_histogram_array": [float(value) for value in macd_histogram.tolist()],
+    }
+
+
 # ==================== MACD CROSS ====================
 def calculate_macd_cross(klines):
     macd_line, macd_signal, _ = _calculate_macd_series(klines)
@@ -152,15 +163,19 @@ def calculate_macd_limits(klines):
 
 # ==================== MACD INITIAL CROSSES ====================
 def calculate_macd_initial_crosses(klines):
-    """Return first zero-line cross price/time values in GMT+8."""
-    macd_line, _, _ = _calculate_macd_series(klines)
+    """Return initial zero-line crosses for MACD line and signal line."""
+    macd_line, macd_signal, _ = _calculate_macd_series(klines)
     offset = len(klines) - len(macd_line)
-    initial_up = None
-    initial_down = None
+    macd_initial_up = None
+    macd_initial_down = None
+    signal_initial_up = None
+    signal_initial_down = None
 
     for index in range(len(macd_line) - 2, 0, -1):
-        previous_2_macd_line = macd_line.iloc[index - 1]
         previous_macd_line = macd_line.iloc[index]
+        previous_2_macd_line = macd_line.iloc[index - 1]
+        previous_macd_signal = macd_signal.iloc[index]
+        previous_2_macd_signal = macd_signal.iloc[index - 1]
         kline_index = index + offset
         if not 0 <= kline_index < len(klines):
             continue
@@ -169,16 +184,31 @@ def calculate_macd_initial_crosses(klines):
             "price": float(klines[kline_index][1]),
             "time": _format_time_gmt8(klines[kline_index][0]),
         }
-        if initial_up is None and previous_2_macd_line < 0 and previous_macd_line > 0:
-            initial_up = item
-        if initial_down is None and previous_2_macd_line > 0 and previous_macd_line < 0:
-            initial_down = item
-        if initial_up is not None and initial_down is not None:
+        if macd_initial_up is None and previous_2_macd_line < 0 and previous_macd_line > 0:
+            macd_initial_up = item
+        if macd_initial_down is None and previous_2_macd_line > 0 and previous_macd_line < 0:
+            macd_initial_down = item
+        if signal_initial_up is None and previous_2_macd_signal < 0 and previous_macd_signal > 0:
+            signal_initial_up = item
+        if signal_initial_down is None and previous_2_macd_signal > 0 and previous_macd_signal < 0:
+            signal_initial_down = item
+        if all(value is not None for value in [
+            macd_initial_up,
+            macd_initial_down,
+            signal_initial_up,
+            signal_initial_down,
+        ]):
             break
 
     return {
-        "macd_initial_up": initial_up,
-        "macd_initial_down": initial_down,
+        "macd_initial_up_price": macd_initial_up["price"] if macd_initial_up else None,
+        "macd_initial_up_time": macd_initial_up["time"] if macd_initial_up else None,
+        "macd_initial_down_price": macd_initial_down["price"] if macd_initial_down else None,
+        "macd_initial_down_time": macd_initial_down["time"] if macd_initial_down else None,
+        "signal_initial_up_price": signal_initial_up["price"] if signal_initial_up else None,
+        "signal_initial_up_time": signal_initial_up["time"] if signal_initial_up else None,
+        "signal_initial_down_price": signal_initial_down["price"] if signal_initial_down else None,
+        "signal_initial_down_time": signal_initial_down["time"] if signal_initial_down else None,
     }
 
 
