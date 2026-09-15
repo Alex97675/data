@@ -467,40 +467,37 @@
             if (!symbol) symbol = "BTCUSDT";
             
             try {
-                const [resCandles, resRsi, resMacd] = await Promise.all([
+                const [resCandles, resArrays] = await Promise.all([
                     fetch(`/candles/${symbol}`),
-                    fetch(`/rsi/${symbol}`),
-                    fetch(`/macd/${symbol}`)
+                    fetch(`/arrays/${symbol}`) // Массивуудыг /arrays/-аас татна
                 ]);
-
-                if (!resCandles.ok || !resRsi.ok || !resMacd.ok) throw new Error("Failed to fetch data from server");
-
+        
+                if (!resCandles.ok || !resArrays.ok) throw new Error("Failed to fetch data from server");
+        
                 const candleData = await resCandles.json();
-                const rsiData = await resRsi.json();
-                const macdData = await resMacd.json();
-
+                const arraysData = await resArrays.json();
+        
                 window.allData = (candleData.candles || []).map(d => [
                     Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                 ]);
-
-                const rsiObj = rsiData.rsi || rsiData;
-                if (rsiObj.rsi_array) {
-                    window.rsiArrayData = rsiObj.rsi_array;
+        
+                // RSI массив
+                if (arraysData.rsi_array) {
+                    window.rsiArrayData = arraysData.rsi_array;
                 }
-
-                const macdObj = macdData.macd || macdData;
-                if (macdObj.macd_array) {
-                    window.macdArrayData = macdObj.macd_array;
-                    window.signalArrayData = macdObj.signal_array;
-                    window.histArrayData = macdObj.histogram_array;
-                    
-                    window.macdAverageValue = macdObj.macd_average !== null ? Number(macdObj.macd_average) : null;
+        
+                // MACD массивууд болон Average утга
+                if (arraysData.macd_line_array) {
+                    window.macdArrayData = arraysData.macd_line_array;
+                    window.signalArrayData = arraysData.macd_signal_array;
+                    window.histArrayData = arraysData.macd_histogram_array;
+                    window.macdAverageValue = arraysData.macd_average !== null ? Number(arraysData.macd_average) : null;
                 }
-
+        
                 priceScale = 1;
                 priceOffset = 0;
                 offset = 0;
-
+        
                 draw();
                 dispatchChartUpdate();
                 startServerPolling();
@@ -526,56 +523,51 @@
         
             liveInterval = setInterval(async () => {
                 try {
-                    const [resCandles, resRsi, resMacd] = await Promise.all([
+                    const [resCandles, resArrays] = await Promise.all([
                         fetch(`/candles/${symbol}`),
-                        fetch(`/rsi/${symbol}`),
-                        fetch(`/macd/${symbol}`)
+                        fetch(`/arrays/${symbol}`)
                     ]);
-
-                    if (!resCandles.ok || !resRsi.ok || !resMacd.ok) return;
-
+            
+                    if (!resCandles.ok || !resArrays.ok) return;
+            
                     let data = await resCandles.json();
-                    let rsiData = await resRsi.json();
-                    let macdData = await resMacd.json();
-
+                    let arraysData = await resArrays.json();
+            
                     if (!data.candles || data.candles.length === 0) return;
-        
+            
                     let serverKlines = data.candles.map(d => [
                         Number(d[0]), Number(d[1]), Number(d[2]), Number(d[3]), Number(d[4]), Number(d[5])
                     ]);
-        
+            
                     if (serverKlines.length > 0) {
                         let latestServerCandle = serverKlines[serverKlines.length - 1];
                         let lastLocalCandle = window.allData[window.allData.length - 1];
-        
+            
                         if (dot) dot.style.opacity = (dot.style.opacity === '1') ? '0.5' : '1';
-        
+            
                         if (lastLocalCandle && lastLocalCandle[0] === latestServerCandle[0]) {
                             window.allData[window.allData.length - 1] = latestServerCandle;
                         } else if (latestServerCandle[0] > lastLocalCandle[0]) {
                             window.allData.push(latestServerCandle);
                             if (window.allData.length > 500) window.allData.shift();
                         }
-
-                        const rsiObj = rsiData.rsi || rsiData;
-                        if (rsiObj.rsi_array) {
-                            window.rsiArrayData = rsiObj.rsi_array;
+            
+                        if (arraysData.rsi_array) {
+                            window.rsiArrayData = arraysData.rsi_array;
                         }
-
-                        const macdObj = macdData.macd || macdData;
-                        if (macdObj.macd_array) {
-                            window.macdArrayData = macdObj.macd_array;
-                            window.signalArrayData = macdObj.signal_array;
-                            window.histArrayData = macdObj.histogram_array;
+            
+                        if (arraysData.macd_line_array) {
+                            window.macdArrayData = arraysData.macd_line_array;
+                            window.signalArrayData = arraysData.macd_signal_array;
+                            window.histArrayData = arraysData.macd_histogram_array;
                         }
-        
+            
                         draw();
                     }
                 } catch (err) {
                     console.error("[Server Sync Error]:", err);
                 }
             }, 2000);
-        }
         
         let updateTimer = null;
         const triggerAutoUpdate = () => {
